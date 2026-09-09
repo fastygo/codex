@@ -1,0 +1,39 @@
+{
+  "definition": {
+    "id": "topic",
+    "label": {
+      "en": "Topic"
+    },
+    "mode": "hierarchical",
+    "assigned_to_kinds": [
+      "article"
+    ],
+    "public": true,
+    "version": 1
+  },
+  "terms": [
+    {
+      "id": "engineering",
+      "taxonomy_id": "topic",
+      "name": {
+        "en": "Engineering"
+      },
+      "slug": {
+        "en": "engineering"
+      },
+      "version": 1
+    },
+    {
+      "id": "architecture",
+      "taxonomy_id": "topic",
+      "name": {
+        "en": "Architecture"
+      },
+      "slug": {
+        "en": "architecture"
+      },
+      "parent_id": "engineering",
+      "version": 1
+    }
+  ]
+}

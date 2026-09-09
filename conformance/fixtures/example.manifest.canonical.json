@@ -1,0 +1,67 @@
+{
+  "name": "conformance-example",
+  "version": "1",
+  "resources": [
+    {
+      "record_type": {
+        "id": "article",
+        "label": "Articles",
+        "schema_version": "1",
+        "owner_module": "conformance",
+        "scope": "tenant",
+        "fields": [
+          {
+            "id": "content",
+            "label": "Content",
+            "type": "text",
+            "localized": true,
+            "searchable": true
+          },
+          {
+            "id": "source_id",
+            "label": "Source ID",
+            "type": "string",
+            "required": true,
+            "indexed": true,
+            "unique": true
+          }
+        ]
+      },
+      "collection": "articles",
+      "taxonomies": [
+        "topic"
+      ],
+      "public": true
+    },
+    {
+      "record_type": {
+        "id": "author",
+        "label": "Authors",
+        "schema_version": "1",
+        "owner_module": "conformance",
+        "scope": "tenant",
+        "fields": [
+          {
+            "id": "display_name",
+            "label": "Display name",
+            "type": "string",
+            "required": true,
+            "searchable": true
+          }
+        ],
+        "relations": [
+          {
+            "id": "author_articles",
+            "source": "author",
+            "target": "article",
+            "cardinality": "one-to-many",
+            "inverse_name": "author",
+            "policy": {},
+            "delete_behavior": "restrict"
+          }
+        ]
+      },
+      "collection": "authors"
+    }
+  ]
+}
