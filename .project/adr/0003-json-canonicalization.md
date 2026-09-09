@@ -22,15 +22,16 @@ Conformance fixtures pin representative JSON. A breaking JSON name, required
 field, lifecycle value, or canonical ordering change requires an explicit
 pre-v1 migration note and minor release; after v1 it requires a major version.
 
-Canonicalization is a semantic ordering helper, not canonical JSON suitable
-for signatures. Signing consumers must specify their serialization profile.
+`Manifest.Digest` defines the contract identity profile: validate, canonicalize
+set-like values, serialize with Go `encoding/json`, and hash with the versioned
+`codex-manifest/v1:sha256:` prefix. It is an identity checksum, not a signed
+artifact.
 
 ## Consequences
 
 - Storage and delivery adapters can prove compatibility against the same
   fixtures.
-- Product declarations produce reproducible digests after a consumer chooses
-  a deterministic JSON encoder.
+- Product declarations produce reproducible versioned digests.
 - Map-valued content remains outside byte-level canonicalization.
 
 ## Rejected alternatives

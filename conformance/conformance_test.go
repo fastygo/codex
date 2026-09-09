@@ -10,6 +10,7 @@ import (
 	"github.com/fastygo/codex/content"
 	"github.com/fastygo/codex/revision"
 	"github.com/fastygo/codex/schema"
+	"github.com/fastygo/codex/validation"
 )
 
 func TestEntryFixture(t *testing.T) {
@@ -32,8 +33,42 @@ func TestManifestFixture(t *testing.T) {
 		t.Fatalf("ManifestFixture() error = %v", err)
 	}
 	resource, ok := manifest.Resource("article")
-	if !ok || resource.Collection != "articles" {
+	if !ok || resource.Record.ID != "article" {
 		t.Fatalf("article resource = %#v, %v", resource, ok)
+	}
+}
+
+func TestResourceEntryFixture(t *testing.T) {
+	manifest, entry, err := conformance.ResourceEntryFixture(
+		"example.manifest.json",
+		"article.entry.json",
+	)
+	if err != nil {
+		t.Fatalf("ResourceEntryFixture() error = %v", err)
+	}
+	if entry.ID != "article-1001" {
+		t.Fatalf("entry id = %q", entry.ID)
+	}
+	resource, _ := manifest.Resource(entry.Kind)
+	projected, err := resource.PublicProjection(entry)
+	if err != nil {
+		t.Fatalf("PublicProjection() error = %v", err)
+	}
+	if _, exists := projected.Metadata["operator_note"]; exists {
+		t.Fatal("schema-sensitive metadata survived public projection")
+	}
+}
+
+func TestResourceEntryFixtureFailureCode(t *testing.T) {
+	_, _, err := conformance.ResourceEntryFixture(
+		"example.manifest.json",
+		"article.entry.invalid-location.json",
+	)
+	if got := validation.Code(err); got != "schema.entry.field_location" {
+		t.Fatalf("validation code = %q, error = %v", got, err)
+	}
+	if got := validation.Path(err); got != "en.source_id" {
+		t.Fatalf("validation path = %q", got)
 	}
 }
 
@@ -52,6 +87,31 @@ func TestManifestCanonicalGolden(t *testing.T) {
 	}
 	if !reflect.DeepEqual(decodeSemantic(t, encoded), decodeSemantic(t, golden)) {
 		t.Fatalf("canonical manifest changed:\n got %s\nwant %s", encoded, golden)
+	}
+}
+
+func TestManifestDigestGolden(t *testing.T) {
+	manifest, err := conformance.ManifestFixture("example.manifest.json")
+	if err != nil {
+		t.Fatalf("ManifestFixture() error = %v", err)
+	}
+	digest, err := manifest.Digest()
+	if err != nil {
+		t.Fatalf("Digest() error = %v", err)
+	}
+	fixtureData, err := conformance.ReadFixture("example.manifest.digest.json")
+	if err != nil {
+		t.Fatalf("ReadFixture() error = %v", err)
+	}
+	var fixture struct {
+		Manifest string `json:"manifest"`
+		Digest   string `json:"digest"`
+	}
+	if err := json.Unmarshal(fixtureData, &fixture); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if fixture.Manifest != "example.manifest.json" || digest != fixture.Digest {
+		t.Fatalf("manifest digest = %q", digest)
 	}
 }
 
@@ -78,6 +138,7 @@ func TestFixtureJSONRoundTrips(t *testing.T) {
 		target any
 	}{
 		{name: "article.entry.json", target: &content.Entry{}},
+		{name: "article.entry.invalid-location.json", target: &content.Entry{}},
 		{name: "example.manifest.json", target: &schema.Manifest{}},
 		{name: "example.manifest.canonical.json", target: &schema.Manifest{}},
 		{name: "topic.taxonomy.json", target: &conformance.TaxonomyBundle{}},

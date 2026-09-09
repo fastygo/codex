@@ -13,8 +13,8 @@ Read `.project/README.md`, `.project/intent.md`, and
    databases, migrations, blob storage, UI, or product manifests.
 2. FormSet owns fields, relations, scopes, capabilities, and form binding.
    Codex must not create a parallel field vocabulary.
-3. Product kinds remain manifest data. Core defaults are only `post`, `page`,
-   `menu`, and `setting`.
+3. Product kinds remain explicit manifest data. Codex does not inject core
+   resources or own route collection names and protocol visibility flags.
 4. Public JSON names, lifecycle values, and canonicalization are compatibility
    contracts. Pre-v1 breaking changes require migration notes and a minor
    release; after v1 they require a major version.

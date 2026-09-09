@@ -16,19 +16,34 @@ already adopted the module.
 ### FormSet schema ownership
 
 GoBackend currently defines a second field/relation vocabulary. Public Codex
-uses `github.com/fastygo/formset` types instead. Migration requires an explicit
-adapter or manifest update for:
+uses `github.com/fastygo/formset` types plus namespaced Codex rules.
 
-- `integer`, `decimal`, `money`, `date`, `uri`, `uuid`, `enum`, and `media`
-  GoBackend types that are not identically named in current FormSet;
-- FormSet `select`, `textarea`, `computed`, `encrypted`, rules, indexing,
-  scopes, capabilities, and relation policies absent from GoBackend schema;
-- GoBackend field-level relation metadata versus FormSet record relations.
-- GoBackend's separate `Fields` and `Form` lists versus Codex's single FormSet
-  `RecordType.Fields` contract. Migration must define one non-lossy ordered
-  field list and retain storage-only/read-only intent through field metadata.
+The migration profile is:
 
-No lossy automatic conversion belongs in Codex.
+- `string`, `text`, `boolean`, `number`, `datetime`, `json`, `collection`,
+  `object`, `richtext`, and `markdown` map to their same-named FormSet types;
+- `integer`, `decimal`, and `money` map to `FieldNumber` plus the matching
+  `fastygo.codex/` rule;
+- `date` maps to `FieldDateTime` plus `fastygo.codex/date`;
+- `uri` and `uuid` map to `FieldString` plus their semantic rule;
+- `enum` maps to `FieldSelect` with ordered FormSet options;
+- `nullable` and `read-only` map to namespaced rules; required plus nullable is
+  invalid;
+- `sensitive` and `localized` map directly to FormSet flags;
+- `media` maps to a relation field with `schema.UIHintMedia` and an explicitly
+  declared media target resource;
+- GoBackend one/many relation values map to FormSet one-to-one/array
+  cardinalities, with the relation ID equal to the field ID.
+
+GoBackend's separate `Fields` and `Form` lists become one ordered
+`RecordType.Fields` list. The adapter unions by field ID, retains storage
+semantics from `Fields`, overlays compatible presentation metadata from
+`Form`, and rejects incompatible duplicate declarations. Built-in localized
+`title`, `content`, and `excerpt` declarations map to the corresponding Entry
+chrome and locale documents.
+
+No lossy automatic conversion belongs in Codex. The adapter is implemented and
+proven in GoBackend when that repository adopts a released version.
 
 Current FormSet string vocabularies are extensible: validation accepts
 non-empty custom field types, scopes, and cardinalities. Codex preserves that
@@ -55,20 +70,32 @@ error result, so adoption requires callers to handle this validation failure.
 ### Canonical identifiers and locales
 
 Public Codex uses one lowercase ASCII identifier grammar for kinds, resources,
-collections, and taxonomy IDs. Locale map keys must already equal their
+and taxonomy IDs. Locale map keys must already equal their
 trimmed lowercase normalization. GoBackend migration must normalize and reject
 collisions before constructing public contract values.
 
+### Resource and delivery split
+
+GoBackend `Collection`, `RESTVisible`, and `GraphQLVisible` are delivery
+configuration. They do not map into public `schema.Resource`. GoBackend keeps
+those values in its delivery manifest projection. `Public` maps to
+`Record.Visibility` only when it describes resource visibility rather than a
+route.
+
+GoBackend currently injects post/page/menu/setting resources. Codex does not.
+The GoBackend bootstrap may retain that defaulting behavior before it
+constructs and validates a public manifest.
+
 ### Exported validation
 
-Taxonomy and revision validation methods are public. Error text is diagnostic,
-not a machine protocol; consumers should not branch on it.
+Public validation failures expose `validation.Error` codes and paths. Error
+text remains diagnostic; adapters branch only on codes.
 
 ## GoBackend adoption gate
 
 Before GoBackend imports Codex:
 
-1. map every manifest field type without loss;
+1. implement the field/form union adapter above without loss;
 2. compare durable JSON fixtures;
 3. run storage adapter tests for SQLite, PostgreSQL, and bbolt;
 4. run lifecycle, revision, taxonomy, authz, REST, and conformance suites;

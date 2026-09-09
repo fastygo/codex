@@ -2,11 +2,11 @@
 package taxonomy
 
 import (
-	"errors"
 	"slices"
 	"strings"
 
 	"github.com/fastygo/codex/content"
+	"github.com/fastygo/codex/validation"
 )
 
 type ID string
@@ -45,27 +45,27 @@ type Assignment struct {
 
 func (definition Definition) Validate() error {
 	if !content.ValidIdentifier(definition.ID) {
-		return errors.New("taxonomy id is invalid")
+		return validation.New("taxonomy.definition.id_invalid", "id", "taxonomy id is invalid")
 	}
 	if definition.Version == 0 {
-		return errors.New("taxonomy version is required")
+		return validation.New("taxonomy.definition.version_required", "version", "taxonomy version is required")
 	}
 	if definition.Mode != ModeFlat && definition.Mode != ModeHierarchical {
-		return errors.New("taxonomy mode is invalid")
+		return validation.New("taxonomy.definition.mode_invalid", "mode", "taxonomy mode is invalid")
 	}
 	if len(definition.AssignedToKinds) == 0 {
-		return errors.New("taxonomy requires at least one resource kind")
+		return validation.New("taxonomy.definition.kinds_required", "assigned_to_kinds", "taxonomy requires at least one resource kind")
 	}
 	if !hasLocalizedValue(definition.Label) {
-		return errors.New("taxonomy label is required")
+		return validation.New("taxonomy.definition.label_required", "label", "taxonomy label is required")
 	}
 	seen := make(map[content.Kind]struct{}, len(definition.AssignedToKinds))
 	for _, kind := range definition.AssignedToKinds {
 		if !content.ValidKind(kind) {
-			return errors.New("taxonomy resource kind is invalid")
+			return validation.New("taxonomy.definition.kind_invalid", string(kind), "taxonomy resource kind is invalid")
 		}
 		if _, exists := seen[kind]; exists {
-			return errors.New("taxonomy resource kind is duplicated")
+			return validation.New("taxonomy.definition.kind_duplicated", string(kind), "taxonomy resource kind is duplicated")
 		}
 		seen[kind] = struct{}{}
 	}
@@ -75,19 +75,19 @@ func (definition Definition) Validate() error {
 func (term Term) Validate(definition Definition) error {
 	switch {
 	case strings.TrimSpace(string(term.ID)) == "":
-		return errors.New("term id is required")
+		return validation.New("taxonomy.term.id_required", "id", "term id is required")
 	case term.TaxonomyID != definition.ID:
-		return errors.New("term taxonomy does not match definition")
+		return validation.New("taxonomy.term.definition_mismatch", "taxonomy_id", "term taxonomy does not match definition")
 	case term.Version == 0:
-		return errors.New("term version is required")
+		return validation.New("taxonomy.term.version_required", "version", "term version is required")
 	case term.ParentID == term.ID:
-		return errors.New("term cannot be its own parent")
+		return validation.New("taxonomy.term.parent_self", "parent_id", "term cannot be its own parent")
 	case definition.Mode == ModeFlat && term.ParentID != "":
-		return errors.New("flat taxonomy cannot contain parent terms")
+		return validation.New("taxonomy.term.parent_flat", "parent_id", "flat taxonomy cannot contain parent terms")
 	case !hasLocalizedValue(term.Name):
-		return errors.New("term name is required")
+		return validation.New("taxonomy.term.name_required", "name", "term name is required")
 	case !hasLocalizedValue(term.Slug):
-		return errors.New("term slug is required")
+		return validation.New("taxonomy.term.slug_required", "slug", "term slug is required")
 	}
 	for _, values := range []content.LocalizedText{term.Name, term.Slug, term.Description} {
 		if err := content.ValidateLocalizedText(values); err != nil {
@@ -106,15 +106,15 @@ func (assignment Assignment) Validate(definition Definition, term Term) error {
 	}
 	switch {
 	case !content.ValidKind(assignment.ResourceKind):
-		return errors.New("assignment resource kind is invalid")
+		return validation.New("taxonomy.assignment.kind_invalid", "resource_kind", "assignment resource kind is invalid")
 	case strings.TrimSpace(string(assignment.ResourceID)) == "":
-		return errors.New("assignment resource id is required")
+		return validation.New("taxonomy.assignment.resource_required", "resource_id", "assignment resource id is required")
 	case assignment.TaxonomyID != definition.ID:
-		return errors.New("assignment taxonomy does not match definition")
+		return validation.New("taxonomy.assignment.definition_mismatch", "taxonomy_id", "assignment taxonomy does not match definition")
 	case assignment.TermID != term.ID:
-		return errors.New("assignment term does not match")
+		return validation.New("taxonomy.assignment.term_mismatch", "term_id", "assignment term does not match")
 	case !definition.Allows(assignment.ResourceKind):
-		return errors.New("taxonomy does not allow resource kind")
+		return validation.New("taxonomy.assignment.kind_forbidden", "resource_kind", "taxonomy does not allow resource kind")
 	default:
 		return nil
 	}
@@ -144,7 +144,7 @@ func ValidateHierarchy(definition Definition, terms []Term) error {
 			return err
 		}
 		if _, exists := byID[term.ID]; exists {
-			return errors.New("term id is duplicated")
+			return validation.New("taxonomy.hierarchy.term_duplicated", string(term.ID), "term id is duplicated")
 		}
 		byID[term.ID] = term
 	}
@@ -153,12 +153,12 @@ func ValidateHierarchy(definition Definition, terms []Term) error {
 		parentID := term.ParentID
 		for parentID != "" {
 			if _, cycle := visited[parentID]; cycle {
-				return errors.New("taxonomy hierarchy contains a cycle")
+				return validation.New("taxonomy.hierarchy.cycle", string(parentID), "taxonomy hierarchy contains a cycle")
 			}
 			visited[parentID] = struct{}{}
 			parent, exists := byID[parentID]
 			if !exists {
-				return errors.New("taxonomy parent does not exist")
+				return validation.New("taxonomy.hierarchy.parent_missing", string(parentID), "taxonomy parent does not exist")
 			}
 			parentID = parent.ParentID
 		}

@@ -59,6 +59,25 @@ func ManifestFixture(name string) (schema.Manifest, error) {
 	return manifest, nil
 }
 
+func ResourceEntryFixture(manifestName, entryName string) (schema.Manifest, content.Entry, error) {
+	manifest, err := ManifestFixture(manifestName)
+	if err != nil {
+		return schema.Manifest{}, content.Entry{}, err
+	}
+	entry, err := EntryFixture(entryName)
+	if err != nil {
+		return schema.Manifest{}, content.Entry{}, err
+	}
+	resource, exists := manifest.Resource(entry.Kind)
+	if !exists {
+		return schema.Manifest{}, content.Entry{}, fmt.Errorf("entry resource %q is not declared", entry.Kind)
+	}
+	if err := resource.ValidateEntry(entry); err != nil {
+		return schema.Manifest{}, content.Entry{}, err
+	}
+	return manifest, entry, nil
+}
+
 type TaxonomyBundle struct {
 	Definition taxonomy.Definition `json:"definition"`
 	Terms      []taxonomy.Term     `json:"terms"`

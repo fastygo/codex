@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fastygo/codex/content"
+	"github.com/fastygo/codex/validation"
 )
 
 func TestEntryValidateAndPublicProjection(t *testing.T) {
@@ -36,6 +37,16 @@ func TestEntryValidateAndPublicProjection(t *testing.T) {
 	projected.Metadata["summary"].Value.(map[string]any)["text"] = "changed"
 	if entry.Metadata["summary"].Value.(map[string]any)["text"] == "changed" {
 		t.Fatal("projection aliases public metadata map")
+	}
+}
+
+func TestEntryValidationHasStableCodeAndPath(t *testing.T) {
+	err := (content.Entry{}).Validate()
+	if got := validation.Code(err); got != "content.entry.id_required" {
+		t.Fatalf("validation code = %q, error = %v", got, err)
+	}
+	if got := validation.Path(err); got != "id" {
+		t.Fatalf("validation path = %q", got)
 	}
 }
 

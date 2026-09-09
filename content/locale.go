@@ -2,10 +2,11 @@ package content
 
 import (
 	"encoding/json"
-	"errors"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/fastygo/codex/validation"
 )
 
 const DefaultLocale = "en"
@@ -27,7 +28,7 @@ func (document *LocaleDocument) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if len(wire.Data) == 0 {
-		return errors.New("locale data is required")
+		return validation.New("content.locale.data_required", "data", "locale data is required")
 	}
 	var values map[string]any
 	if err := decodeJSON(wire.Data, &values, false); err != nil {
@@ -116,10 +117,10 @@ func MergeLocales(target, patch map[string]LocaleDocument) (map[string]LocaleDoc
 	for _, key := range keys {
 		locale := NormalizeLocale(key)
 		if locale == "" {
-			return target, errors.New("locale is required")
+			return target, validation.New("content.locale.required", key, "locale is required")
 		}
 		if previous, exists := normalizedKeys[locale]; exists && previous != key {
-			return target, errors.New("locale patch contains a normalized collision")
+			return target, validation.New("content.locale.collision", locale, "locale patch contains a normalized collision")
 		}
 		normalizedKeys[locale] = key
 	}

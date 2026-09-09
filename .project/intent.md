@@ -27,7 +27,9 @@ products may consume Codex immediately without importing GoBackend.
 
 - public Go packages with stable JSON representations;
 - deterministic canonicalization and validation;
-- the reserved `post`, `page`, `menu`, and `setting` resource definitions;
+- resource-aware Entry validation and sensitivity projection;
+- a lossless FormSet profile for current GoBackend field semantics;
+- versioned manifest digests and machine-readable validation failures;
 - reproducible FormSet dependency from GitHub;
 - conformance fixtures and tests;
 - migration documentation for current GoBackend internal types.
@@ -40,6 +42,7 @@ products may consume Codex immediately without importing GoBackend.
 - Wails, Svelte, Templ, or another renderer;
 - Telegram or another product manifest;
 - changing GoBackend or FormSet in this repository.
+- route collection names, REST/GraphQL exposure, or injected core resources.
 
 ## Compatibility promise
 

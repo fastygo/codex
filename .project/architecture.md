@@ -25,15 +25,19 @@ public projection, slug normalization, and protocol-neutral validation.
 
 ### `schema`
 
-Defines `Manifest` and `Resource`. A resource embeds a FormSet `RecordType` so
-there is one owner for field, form, and relation semantics. Resource adds a
-collection name, assigned taxonomies, and public content semantics.
+Defines `Manifest` and `Resource`. `Resource.Record` is a FormSet `RecordType`,
+so there is one owner for field, form, and relation semantics. Resource adds
+assigned taxonomy identifiers and content-aware Entry validation.
 
 Manifest validation checks identifiers, uniqueness, FormSet validation,
-relation targets, taxonomy identifiers, and reserved core resources.
+relation targets, taxonomy identifiers, and field/relation identity.
 Canonicalization sorts resources, relations, capabilities, and taxonomy names.
 It preserves FormSet field and option order because renderers may treat that
 order as presentation semantics.
+
+`Field.Localized` is the storage discriminator: localized values live in
+`Entry.Locales`; all other declared values live in `Entry.Metadata`.
+`Resource.PublicProjection` applies FormSet sensitivity to both locations.
 
 ### `taxonomy`
 
@@ -61,18 +65,21 @@ Canonicalization provides deterministic semantic ordering; it is not a
 cryptographic signature format. Consumers sign a specified serialized form if
 needed.
 
-## Core and product resources
+## Product and delivery boundary
 
-Codex reserves four core kinds:
+Codex injects no resources. Constants such as `content.KindPost` name known
+identifiers only. Product kinds, including any `post`, `page`, `menu`,
+`setting`, or `media` resource, are explicit manifest data.
 
-- `post`
-- `page`
-- `menu`
-- `setting`
+Collection route names, REST/GraphQL exposure, authentication, publication
+filtering, and media blob delivery belong to GoBackend or another adapter.
+They are deliberately absent from `schema.Resource`.
 
-Product kinds such as `message` and `conversation` are supplied through a
-manifest. `WithCoreResources` adds missing core resources without replacing a
-product declaration, preserving current GoBackend behavior.
+## Contract identity
+
+`Manifest.Digest` hashes canonical JSON with a versioned prefix. Validation
+errors expose machine-readable codes and paths through the `validation`
+package. Human messages may improve without changing the contract.
 
 ## Migration boundary
 

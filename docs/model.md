@@ -1,49 +1,25 @@
 # Codex model
 
-## WordPress-like mapping
-
-Codex uses one `content.Entry` aggregate for every content record.
-
-| WordPress concept | Codex contract |
-| --- | --- |
-| `wp_posts` row | `content.Entry` |
-| `post_type` | `content.Entry.Kind` / `schema.Resource.ID` |
-| post status | `content.Status` |
-| post visibility | `content.Visibility` |
-| post meta | `Entry.Metadata` and FormSet fields |
-| taxonomy | `taxonomy.Definition` |
-| term | `taxonomy.Term` |
-| term relationship | `taxonomy.Assignment` and `Entry.Terms` |
-| revision | `revision.Revision` |
-| custom post type registration | `schema.Manifest.Resources` |
-
-Kinds are open lowercase identifiers. Codex reserves core definitions for
-`post`, `page`, `menu`, and `setting`; products own all additional kinds.
-
 ## Entry
 
-An Entry contains common content chrome:
-
-- stable ID and kind;
-- lifecycle status and visibility;
-- localized slug, title, content, and excerpt;
-- optional author, parent, featured media, and template references;
-- typed-by-manifest metadata and locale documents;
-- taxonomy term references;
-- optimistic version and timestamps.
+`content.Entry` is the one aggregate for every content record. `Entry.Kind`
+identifies its manifest resource. The aggregate owns identity, lifecycle,
+visibility, built-in localized chrome, metadata, locale documents, taxonomy
+references, optimistic version, and timestamps.
 
 Storage adapters may project these values into SQL columns and indexes, but
-their table shape is not part of this module.
+their table shape is not part of Codex.
 
 ## Resource manifest
 
-A `schema.Resource` embeds `formset.RecordType`. This means the same public
-FormSet declaration owns fields, relations, scope, capabilities, validation
-hints, sensitivity, indexing hints, and schema version.
+`schema.Resource.Record` is a `formset.RecordType`. FormSet remains the sole
+owner of fields, relations, scopes, capabilities, options, validation rules,
+and form-binding semantics. Codex adds assigned taxonomy IDs and content-aware
+entry validation.
 
 ```go
 message := schema.Resource{
-	RecordType: formset.RecordType{
+	Record: formset.RecordType{
 		ID:            "message",
 		Label:         "Messages",
 		SchemaVersion: "1",
@@ -55,54 +31,106 @@ message := schema.Resource{
 				Label:    "Telegram message ID",
 				Type:     formset.FieldNumber,
 				Required: true,
-				Indexed:  true,
+				Rules: []formset.ValidationRule{
+					{Name: schema.RuleInteger},
+				},
 			},
 			{
 				ID:         "content",
 				Label:      "Content",
 				Type:       formset.FieldText,
+				Localized:  true,
 				Searchable: true,
 			},
 		},
 	},
-	Collection: "messages",
 	Taxonomies: []string{"message_type"},
 }
 ```
 
-The application decides how FormSet values map into Entry locale documents or
-metadata. Codex validates the shared declarations but does not render forms or
-persist their data.
+Kinds are open lowercase identifiers. Constants such as `content.KindPost`
+name established Codex identifiers but do not inject resources. Every
+application declares exactly the resources it uses. Route collection names
+and REST/GraphQL exposure are delivery configuration, not manifest fields.
+
+## Field placement
+
+The resource declaration defines one storage rule:
+
+- `Field.Localized == true` places the value in
+  `Entry.Locales[locale].Data[field.ID]`;
+- every other declared field is placed in
+  `Entry.Metadata[field.ID].Value`;
+- relation fields are never localized.
+
+The built-in `slug`, `title`, `content`, and `excerpt` fields are mirrored by
+their `Entry` maps. If a resource declares one of those IDs as localized and a
+locale document also carries it, both values must match. This preserves the
+existing entry chrome while keeping one resource-aware validation rule.
+
+`Resource.ValidateEntry` validates both FormSet constraints and Codex semantic
+rules. `Resource.PublicProjection` removes private metadata and every
+schema-sensitive field, including localized data.
+
+## Codex field profile
+
+GoBackend concepts that are narrower than FormSet renderer types use
+namespaced rules:
+
+- `integer`, `decimal`, and `money` use `formset.FieldNumber`;
+- `date` uses `formset.FieldDateTime`;
+- `uri` and `uuid` use `formset.FieldString`;
+- JSON that may contain any JSON scalar or container uses
+  `formset.FieldJSON`;
+- `nullable` and `read-only` remain explicit policy rules;
+- `enum` uses `formset.FieldSelect` and ordered `Options`;
+- object and collection fields retain nested `Fields` and `Items`;
+- media is a `formset.FieldRelation` with `UIHintMedia` and an explicitly
+  declared media target resource.
+
+Rule constants use the `fastygo.codex/` namespace. Unknown FormSet field,
+scope, rule, and visibility values remain round-trippable so FormSet can evolve
+without a second Codex vocabulary.
+
+`read-only` is mutation policy, not value validity. `ValidateEntry` accepts a
+stored read-only value; application mutation adapters must reject client
+changes to it.
 
 ## Relations
 
-Relations are FormSet declarations between resource IDs. Cardinality and
-delete behavior describe policy; applications enforce that policy. Codex
-manifest validation proves that declared source and target resources exist.
+A relation is declared once in `Record.Relations`. Its ID equals the
+top-level relation field ID, and its source equals the owning record ID.
+One-to-one relations store one entry ID. One-to-many and many-to-many
+relations store an array of entry IDs. Manifest validation proves that source
+and target resources exist.
 
 ## Locales
 
-`LocalizedText` covers built-in content chrome. `LocaleDocument` holds one
-whole FormSet data document per locale. Locale fallback returns one complete
-document and never mixes fields from different locales.
+`LocalizedText` covers built-in entry chrome. `LocaleDocument` holds one whole
+localized FormSet document. Locale fallback returns one complete document and
+never mixes fields from different locales. Products whose language is
+intentionally unspecified may use `und`.
 
-Use the BCP 47 language tag appropriate to the product. Products with content
-whose language is intentionally unspecified may use `und`.
+## Taxonomies and revisions
 
-## Taxonomies
+A taxonomy is flat or hierarchical and explicitly lists allowed entry kinds.
+Assignments join an entry identity to a term. A revision stores an immutable
+entry snapshot at exactly one entry version. Persistence, referential
+integrity, revision retention, restore, and authorization remain application
+concerns.
 
-A taxonomy is either flat or hierarchical and explicitly lists allowed Entry
-kinds. Hierarchical validation rejects missing parents and cycles. An
-assignment joins one Entry identity to one term; persistence and referential
-integrity remain adapter responsibilities.
+## Canonical identity and validation
 
-## Revisions
+`Manifest.Canonical` sorts set-like declarations while preserving FormSet
+field and option order. `Manifest.Digest` returns a versioned SHA-256 identity
+over canonical JSON.
 
-A revision stores an immutable Entry snapshot at exactly one Entry version.
-Creation, retention, restore, and authorization remain application concerns.
+Validation failures expose stable `validation.Error` codes and paths.
+Human-readable messages are diagnostic and are not compatibility keys.
 
 ## Conformance
 
-The `conformance` package embeds stable Entry and manifest fixtures. Storage or
-delivery adapters should decode, round-trip, and validate those fixtures in
-their own test suites before claiming Codex compatibility.
+The `conformance` package embeds stable Entry, resource-aware Entry, manifest,
+taxonomy, and revision fixtures. It also pins canonical output and expected
+failure codes. Adapters should run these fixtures without local module
+replacements before claiming Codex compatibility.

@@ -3,7 +3,7 @@
   "version": "1",
   "resources": [
     {
-      "record_type": {
+      "record": {
         "id": "author",
         "label": "Authors",
         "schema_version": "1",
@@ -16,11 +16,16 @@
             "type": "string",
             "required": true,
             "searchable": true
+          },
+          {
+            "id": "articles",
+            "label": "Articles",
+            "type": "relation"
           }
         ],
         "relations": [
           {
-            "id": "author_articles",
+            "id": "articles",
             "source": "author",
             "target": "article",
             "cardinality": "one-to-many",
@@ -29,16 +34,16 @@
             "delete_behavior": "restrict"
           }
         ]
-      },
-      "collection": "authors"
+      }
     },
     {
-      "record_type": {
+      "record": {
         "id": "article",
         "label": "Articles",
         "schema_version": "1",
         "owner_module": "conformance",
         "scope": "tenant",
+        "visibility": "public",
         "fields": [
           {
             "id": "content",
@@ -54,14 +59,28 @@
             "required": true,
             "indexed": true,
             "unique": true
+          },
+          {
+            "id": "source_sequence",
+            "label": "Source sequence",
+            "type": "number",
+            "rules": [
+              {
+                "name": "fastygo.codex/integer"
+              }
+            ]
+          },
+          {
+            "id": "operator_note",
+            "label": "Operator note",
+            "type": "text",
+            "sensitive": true
           }
         ]
       },
-      "collection": "articles",
       "taxonomies": [
         "topic"
-      ],
-      "public": true
+      ]
     }
   ]
 }

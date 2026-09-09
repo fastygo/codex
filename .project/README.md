@@ -12,6 +12,9 @@ delivery adapters share one content model without importing one another.
 - [ADR-0001: Public protocol-neutral kernel](adr/0001-public-kernel.md)
 - [ADR-0002: FormSet owns fields and relations](adr/0002-formset-schema-ownership.md)
 - [ADR-0003: Stable JSON and canonicalization](adr/0003-json-canonicalization.md)
+- [ADR-0004: Resource-aware Entry mapping](adr/0004-resource-entry-mapping.md)
+- [ADR-0005: Explicit resources and delivery separation](adr/0005-explicit-resources.md)
+- [ADR-0006: Stable validation identity](adr/0006-validation-and-digest.md)
 
 ## Release gate
 

@@ -7,6 +7,8 @@ import (
 	"io"
 	"math"
 	"reflect"
+
+	"github.com/fastygo/codex/validation"
 )
 
 func (value *MetadataValue) UnmarshalJSON(data []byte) error {
@@ -19,7 +21,7 @@ func (value *MetadataValue) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if len(wire.Value) == 0 {
-		return errors.New("metadata value is required")
+		return validation.New("content.metadata.value_required", "value", "metadata value is required")
 	}
 	var decoded any
 	if err := decodeJSON(wire.Value, &decoded, false); err != nil {
@@ -53,9 +55,12 @@ func decodeJSON(data []byte, target any, strict bool) error {
 // keys are rejected even if a custom encoder could serialize them.
 func ValidateJSONValue(value any) error {
 	if _, err := json.Marshal(value); err != nil {
-		return err
+		return validation.Wrap("content.json.marshal", "", err)
 	}
-	return validateJSONShape(reflect.ValueOf(value))
+	if err := validateJSONShape(reflect.ValueOf(value)); err != nil {
+		return validation.Wrap("content.json.shape", "", err)
+	}
+	return nil
 }
 
 func validateJSONShape(value reflect.Value) error {

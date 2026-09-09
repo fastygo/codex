@@ -2,9 +2,10 @@
 package content
 
 import (
-	"errors"
 	"strings"
 	"time"
+
+	"github.com/fastygo/codex/validation"
 )
 
 type ID string
@@ -72,35 +73,35 @@ type Entry struct {
 func (entry Entry) Validate() error {
 	switch {
 	case strings.TrimSpace(string(entry.ID)) == "":
-		return errors.New("content id is required")
+		return validation.New("content.entry.id_required", "id", "content id is required")
 	case !ValidKind(entry.Kind):
-		return errors.New("content kind is invalid")
+		return validation.New("content.entry.kind_invalid", "kind", "content kind is invalid")
 	case !entry.Status.Valid():
-		return errors.New("content status is invalid")
+		return validation.New("content.entry.status_invalid", "status", "content status is invalid")
 	case !entry.Visibility.Valid():
-		return errors.New("content visibility is invalid")
+		return validation.New("content.entry.visibility_invalid", "visibility", "content visibility is invalid")
 	case entry.Version == 0:
-		return errors.New("content version is required")
+		return validation.New("content.entry.version_required", "version", "content version is required")
 	case entry.CreatedAt.IsZero() || entry.UpdatedAt.IsZero():
-		return errors.New("content timestamps are required")
+		return validation.New("content.entry.timestamps_required", "created_at", "content timestamps are required")
 	case entry.UpdatedAt.Before(entry.CreatedAt):
-		return errors.New("content updated_at precedes created_at")
+		return validation.New("content.entry.timestamps_order", "updated_at", "content updated_at precedes created_at")
 	case entry.ParentID != "" && entry.ParentID == entry.ID:
-		return errors.New("content cannot be its own parent")
+		return validation.New("content.entry.parent_self", "parent_id", "content cannot be its own parent")
 	case entry.Status == StatusScheduled && entry.PublishedAt == nil:
-		return errors.New("scheduled content requires published_at")
+		return validation.New("content.entry.published_at_required", "published_at", "scheduled content requires published_at")
 	case entry.Status == StatusScheduled && !entry.PublishedAt.After(entry.UpdatedAt):
-		return errors.New("scheduled content requires a future published_at")
+		return validation.New("content.entry.published_at_future", "published_at", "scheduled content requires a future published_at")
 	case entry.Status == StatusTrashed && entry.DeletedAt == nil:
-		return errors.New("trashed content requires deleted_at")
+		return validation.New("content.entry.deleted_at_required", "deleted_at", "trashed content requires deleted_at")
 	case !hasLocalizedValue(entry.Slug):
-		return errors.New("content slug is required")
+		return validation.New("content.entry.slug_required", "slug", "content slug is required")
 	case !hasLocalizedValue(entry.Title):
-		return errors.New("content title is required")
+		return validation.New("content.entry.title_required", "title", "content title is required")
 	}
 	for _, values := range []LocalizedText{entry.Slug, entry.Title, entry.Content, entry.Excerpt} {
 		if err := ValidateLocalizedText(values); err != nil {
-			return err
+			return validation.Wrap("content.entry.localized_text_invalid", "", err)
 		}
 	}
 	if err := validateMetadata(entry.Metadata); err != nil {
@@ -202,7 +203,7 @@ func hasLocalizedValue(values LocalizedText) bool {
 func ValidateLocalizedText(values LocalizedText) error {
 	for locale := range values {
 		if NormalizeLocale(locale) == "" || NormalizeLocale(locale) != locale {
-			return errors.New("localized text locale is not canonical")
+			return validation.New("content.locale.noncanonical", locale, "localized text locale is not canonical")
 		}
 	}
 	return nil
@@ -234,10 +235,10 @@ func cloneMetadata(source map[string]MetadataValue) map[string]MetadataValue {
 func validateMetadata(metadata map[string]MetadataValue) error {
 	for key, value := range metadata {
 		if strings.TrimSpace(key) == "" {
-			return errors.New("content metadata key is required")
+			return validation.New("content.metadata.key_required", key, "content metadata key is required")
 		}
 		if err := ValidateJSONValue(value.Value); err != nil {
-			return errors.New("content metadata value is not JSON-compatible")
+			return validation.Wrap("content.metadata.value_invalid", key, err)
 		}
 	}
 	return nil
@@ -246,13 +247,13 @@ func validateMetadata(metadata map[string]MetadataValue) error {
 func validateLocales(locales map[string]LocaleDocument) error {
 	for locale, document := range locales {
 		if NormalizeLocale(locale) == "" || NormalizeLocale(locale) != locale {
-			return errors.New("content locale is not canonical")
+			return validation.New("content.locale.noncanonical", locale, "content locale is not canonical")
 		}
 		if !document.Status.Valid() {
-			return errors.New("content locale status is invalid")
+			return validation.New("content.locale.status_invalid", locale+".status", "content locale status is invalid")
 		}
 		if err := ValidateJSONValue(document.Data); err != nil {
-			return errors.New("content locale data is not JSON-compatible")
+			return validation.Wrap("content.locale.data_invalid", locale+".data", err)
 		}
 	}
 	return nil
@@ -262,10 +263,10 @@ func validateTermRefs(terms []TermRef) error {
 	seen := make(map[TermRef]struct{}, len(terms))
 	for _, term := range terms {
 		if !ValidIdentifier(term.Taxonomy) || strings.TrimSpace(term.TermID) == "" {
-			return errors.New("content term reference is incomplete")
+			return validation.New("content.term_ref.incomplete", term.Taxonomy, "content term reference is incomplete")
 		}
 		if _, exists := seen[term]; exists {
-			return errors.New("content term reference is duplicated")
+			return validation.New("content.term_ref.duplicated", term.Taxonomy, "content term reference is duplicated")
 		}
 		seen[term] = struct{}{}
 	}

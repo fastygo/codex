@@ -2,11 +2,11 @@
 package revision
 
 import (
-	"errors"
 	"strings"
 	"time"
 
 	"github.com/fastygo/codex/content"
+	"github.com/fastygo/codex/validation"
 )
 
 type ID string
@@ -24,17 +24,17 @@ type Revision struct {
 func (revision Revision) Validate() error {
 	switch {
 	case strings.TrimSpace(string(revision.ID)) == "":
-		return errors.New("revision id is required")
+		return validation.New("revision.id_required", "id", "revision id is required")
 	case revision.EntryID == "":
-		return errors.New("revision entry id is required")
+		return validation.New("revision.entry_required", "entry_id", "revision entry id is required")
 	case revision.EntryID != revision.Snapshot.ID:
-		return errors.New("revision snapshot entry does not match")
+		return validation.New("revision.entry_mismatch", "snapshot.id", "revision snapshot entry does not match")
 	case revision.Version == 0 || revision.Version != revision.Snapshot.Version:
-		return errors.New("revision version does not match snapshot")
+		return validation.New("revision.version_mismatch", "version", "revision version does not match snapshot")
 	case strings.TrimSpace(revision.AuthorID) == "":
-		return errors.New("revision author is required")
+		return validation.New("revision.author_required", "author_id", "revision author is required")
 	case revision.CreatedAt.IsZero():
-		return errors.New("revision created_at is required")
+		return validation.New("revision.created_at_required", "created_at", "revision created_at is required")
 	}
 	return revision.Snapshot.Validate()
 }

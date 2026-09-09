@@ -20,15 +20,13 @@
       "value": 9007199254740993
     },
     "operator_note": {
-      "value": "private fixture metadata",
-      "private": true
+      "value": "schema-sensitive fixture metadata"
     }
   },
   "locales": {
     "en": {
       "data": {
-        "content": "One entry contract, many adapters.",
-        "source_id": "fixture-1001"
+        "content": "One entry contract, many adapters."
       },
       "status": "published",
       "updated_at": "2026-09-09T12:00:00Z"
