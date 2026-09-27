@@ -4,17 +4,17 @@
 FastyGo applications.
 
 Codex provides one WordPress-like entry aggregate with manifest-backed kinds,
-FormSet-owned fields and relations, taxonomies, revisions, localization,
-validation, and deterministic canonicalization. A `Kind` is the equivalent of
-a `post_type`: products can declare `post`, `page`, `message`,
-`conversation`, or another kind without creating a parallel content model.
+fields and relations, taxonomies, revisions, localization, validation, and
+deterministic canonicalization. A `Kind` is the equivalent of a `post_type`:
+products can declare `post`, `page`, `message`, `conversation`, or another
+kind without creating a parallel content model.
 
 ## Ownership
 
 Codex owns:
 
 - content identity, lifecycle, visibility, locale documents, and term refs;
-- manifest resources and their FormSet schema;
+- manifest resources, fields, and relations;
 - taxonomy definitions, terms, and assignments;
 - immutable revision snapshots;
 - validation, canonicalization, and conformance fixtures.
@@ -28,7 +28,7 @@ names. Those stay in GoBackend and product repositories.
 
 ```text
 content/      Entry, lifecycle, visibility, locales
-schema/       Manifest and FormSet-backed resources
+schema/       Manifest, fields, relations, entry validation
 taxonomy/     Definitions, terms, assignments, hierarchy validation
 revision/     Immutable Entry snapshots
 conformance/  Stable fixtures and compatibility checks
@@ -37,8 +37,8 @@ validation/   Machine-readable validation codes and paths
 
 ## Install
 
-Codex is pre-v1 while the FormSet boundary and GoBackend migration are being
-proven. Pin an exact published version:
+Codex is pre-v1 while the GoBackend migration is being proven. Pin an exact
+published version:
 
 ```bash
 go get github.com/fastygo/codex@<version>
@@ -60,10 +60,10 @@ entry := content.Entry{
 	CreatedAt:  sentAt,
 	UpdatedAt:  sentAt,
 }
-resource := schema.Resource{Record: formset.RecordType{
-	ID: "message", Label: "Messages", Scope: formset.ScopeUser,
-	Fields: []formset.Field{
-		{ID: "content", Label: "Content", Type: formset.FieldText, Localized: true},
+resource := schema.Resource{Record: schema.RecordType{
+	ID: "message", Label: "Messages", Scope: schema.ScopeUser,
+	Fields: []schema.Field{
+		{ID: "content", Label: "Content", Type: schema.FieldText, Localized: true},
 	},
 }}
 if err := resource.ValidateEntry(entry); err != nil {
@@ -73,8 +73,9 @@ if err := resource.ValidateEntry(entry); err != nil {
 
 See [`docs/model.md`](docs/model.md) for the complete model and
 [`.project/README.md`](.project/README.md) for the contract and decisions.
-Existing `v0.1.0` consumers must follow the
-[`v0.2.0` migration note](docs/migrations/v0.2.0.md).
+Existing consumers follow the
+[`v0.2.0`](docs/migrations/v0.2.0.md) and
+[`v0.3.0`](docs/migrations/v0.3.0.md) migration notes.
 
 ## Verify
 

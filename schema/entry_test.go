@@ -7,7 +7,6 @@ import (
 
 	"github.com/fastygo/codex/content"
 	"github.com/fastygo/codex/schema"
-	"github.com/fastygo/formset"
 )
 
 func TestResourceValidateEntry(t *testing.T) {
@@ -86,17 +85,17 @@ func TestResourcePublicProjectionUsesSchemaSensitivity(t *testing.T) {
 }
 
 func TestResourcePublicProjectionRemovesNestedSensitiveFields(t *testing.T) {
-	resource := schema.Resource{Record: formset.RecordType{
-		ID: "profile", Label: "Profiles", Scope: formset.ScopeTenant,
-		Fields: []formset.Field{{
-			ID: "details", Label: "Details", Type: formset.FieldObject,
-			Fields: []formset.Field{
-				{ID: "display_name", Label: "Display name", Type: formset.FieldString},
-				{ID: "secret", Label: "Secret", Type: formset.FieldString, Sensitive: true},
+	resource := schema.Resource{Record: schema.RecordType{
+		ID: "profile", Label: "Profiles", Scope: schema.ScopeTenant,
+		Fields: []schema.Field{{
+			ID: "details", Label: "Details", Type: schema.FieldObject,
+			Fields: []schema.Field{
+				{ID: "display_name", Label: "Display name", Type: schema.FieldString},
+				{ID: "secret", Label: "Secret", Type: schema.FieldString, Sensitive: true},
 			},
 		}, {
-			ID: "tokens", Label: "Tokens", Type: formset.FieldCollection,
-			Items: &formset.Field{ID: "token", Label: "Token", Type: formset.FieldString, Sensitive: true},
+			ID: "tokens", Label: "Tokens", Type: schema.FieldCollection,
+			Items: &schema.Field{ID: "token", Label: "Token", Type: schema.FieldString, Sensitive: true},
 		}},
 	}}
 	now := testTime()
@@ -152,7 +151,7 @@ func TestCodexSemanticRules(t *testing.T) {
 	}
 }
 
-func TestGoBackendFieldSemanticsHaveLosslessFormSetProfile(t *testing.T) {
+func TestGoBackendFieldSemanticsRoundTrip(t *testing.T) {
 	resource := semanticResource()
 	now := testTime()
 	entry := content.Entry{
@@ -188,25 +187,25 @@ func TestGoBackendFieldSemanticsHaveLosslessFormSetProfile(t *testing.T) {
 	}
 }
 
-func TestMediaUsesAFormSetRelation(t *testing.T) {
+func TestMediaUsesARelation(t *testing.T) {
 	manifest := schema.Manifest{
 		Name: "media-example", Version: "1",
 		Resources: []schema.Resource{
 			{
-				Record: formset.RecordType{
-					ID: "article", Label: "Articles", Scope: formset.ScopeTenant,
-					Fields: []formset.Field{{
+				Record: schema.RecordType{
+					ID: "article", Label: "Articles", Scope: schema.ScopeTenant,
+					Fields: []schema.Field{{
 						ID: "attachment", Label: "Attachment",
-						Type: formset.FieldRelation, UIHint: schema.UIHintMedia,
+						Type: schema.FieldRelation, UIHint: schema.UIHintMedia,
 					}},
-					Relations: []formset.Relation{{
+					Relations: []schema.Relation{{
 						ID: "attachment", Source: "article", Target: "media",
-						Cardinality:    formset.RelationOneToOne,
-						DeleteBehavior: formset.DeleteNullify,
+						Cardinality:    schema.RelationOneToOne,
+						DeleteBehavior: schema.DeleteNullify,
 					}},
 				},
 			},
-			{Record: formset.RecordType{ID: "media", Label: "Media", Scope: formset.ScopeTenant}},
+			{Record: schema.RecordType{ID: "media", Label: "Media", Scope: schema.ScopeTenant}},
 		},
 	}
 	if err := manifest.Validate(); err != nil {
@@ -237,32 +236,32 @@ func validMessage() content.Entry {
 }
 
 func semanticResource() schema.Resource {
-	rule := func(name string) []formset.ValidationRule {
-		return []formset.ValidationRule{{Name: name}}
+	rule := func(name string) []schema.ValidationRule {
+		return []schema.ValidationRule{{Name: name}}
 	}
-	return schema.Resource{Record: formset.RecordType{
-		ID: "semantic", Label: "Semantic", Scope: formset.ScopeTenant,
-		Fields: []formset.Field{
-			{ID: "integer_value", Label: "Integer", Type: formset.FieldNumber, Rules: rule(schema.RuleInteger)},
-			{ID: "decimal_value", Label: "Decimal", Type: formset.FieldNumber, Rules: rule(schema.RuleDecimal)},
-			{ID: "money_value", Label: "Money", Type: formset.FieldNumber, Rules: rule(schema.RuleMoney)},
-			{ID: "date_value", Label: "Date", Type: formset.FieldDateTime, Rules: rule(schema.RuleDate)},
-			{ID: "uri_value", Label: "URI", Type: formset.FieldString, Rules: rule(schema.RuleURI)},
-			{ID: "uuid_value", Label: "UUID", Type: formset.FieldString, Rules: rule(schema.RuleUUID)},
-			{ID: "nullable_value", Label: "Nullable", Type: formset.FieldString, Rules: rule(schema.RuleNullable)},
-			{ID: "readonly_value", Label: "Read only", Type: formset.FieldString, Rules: rule(schema.RuleReadOnly)},
-			{ID: "json_value", Label: "JSON", Type: formset.FieldJSON, Rules: rule(schema.RuleJSONAny)},
+	return schema.Resource{Record: schema.RecordType{
+		ID: "semantic", Label: "Semantic", Scope: schema.ScopeTenant,
+		Fields: []schema.Field{
+			{ID: "integer_value", Label: "Integer", Type: schema.FieldNumber, Rules: rule(schema.RuleInteger)},
+			{ID: "decimal_value", Label: "Decimal", Type: schema.FieldNumber, Rules: rule(schema.RuleDecimal)},
+			{ID: "money_value", Label: "Money", Type: schema.FieldNumber, Rules: rule(schema.RuleMoney)},
+			{ID: "date_value", Label: "Date", Type: schema.FieldDateTime, Rules: rule(schema.RuleDate)},
+			{ID: "uri_value", Label: "URI", Type: schema.FieldString, Rules: rule(schema.RuleURI)},
+			{ID: "uuid_value", Label: "UUID", Type: schema.FieldString, Rules: rule(schema.RuleUUID)},
+			{ID: "nullable_value", Label: "Nullable", Type: schema.FieldString, Rules: rule(schema.RuleNullable)},
+			{ID: "readonly_value", Label: "Read only", Type: schema.FieldString, Rules: rule(schema.RuleReadOnly)},
+			{ID: "json_value", Label: "JSON", Type: schema.FieldJSON, Rules: rule(schema.RuleJSONAny)},
 			{
-				ID: "enum_value", Label: "Enum", Type: formset.FieldSelect,
-				Options: []formset.Option{{Value: "alpha", Label: "Alpha"}, {Value: "beta", Label: "Beta"}},
+				ID: "enum_value", Label: "Enum", Type: schema.FieldSelect,
+				Options: []schema.Option{{Value: "alpha", Label: "Alpha"}, {Value: "beta", Label: "Beta"}},
 			},
 			{
-				ID: "object_value", Label: "Object", Type: formset.FieldObject,
-				Fields: []formset.Field{{ID: "name", Label: "Name", Type: formset.FieldString, Required: true}},
+				ID: "object_value", Label: "Object", Type: schema.FieldObject,
+				Fields: []schema.Field{{ID: "name", Label: "Name", Type: schema.FieldString, Required: true}},
 			},
 			{
-				ID: "collection_value", Label: "Collection", Type: formset.FieldCollection,
-				Items: &formset.Field{ID: "item", Label: "Item", Type: formset.FieldString},
+				ID: "collection_value", Label: "Collection", Type: schema.FieldCollection,
+				Items: &schema.Field{ID: "item", Label: "Item", Type: schema.FieldString},
 			},
 		},
 	}}

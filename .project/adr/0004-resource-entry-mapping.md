@@ -18,7 +18,7 @@ in `Entry.Locales[locale].Data`; all other declared fields live in
 The built-in localized IDs `slug`, `title`, `content`, and `excerpt` mirror
 their Entry chrome maps. A duplicate value in locale data must match.
 
-`Resource.ValidateEntry` applies FormSet binding, Codex semantic rules, and
+`Resource.ValidateEntry` applies field binding, Codex semantic rules, and
 relation cardinality. `Resource.PublicProjection` removes private metadata and
 all schema-sensitive fields from either storage location.
 

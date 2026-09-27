@@ -11,8 +11,8 @@ Read `.project/README.md`, `.project/intent.md`, and
 
 1. Do not add HTTP, REST, GraphQL, auth, sessions, CSRF, repositories,
    databases, migrations, blob storage, UI, or product manifests.
-2. FormSet owns fields, relations, scopes, capabilities, and form binding.
-   Codex must not create a parallel field vocabulary.
+2. Codex owns fields, relations, scopes, capabilities, and entry-field
+   validation. Do not import FormSet. A form projection lives outside this module.
 3. Product kinds remain explicit manifest data. Codex does not inject core
    resources or own route collection names and protocol visibility flags.
 4. Public JSON names, lifecycle values, and canonicalization are compatibility

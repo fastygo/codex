@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/fastygo/codex/schema"
-	"github.com/fastygo/formset"
 )
 
 func TestManifestWithProductResources(t *testing.T) {
@@ -33,7 +32,7 @@ func TestManifestRejectsMissingRelationTarget(t *testing.T) {
 
 func TestCanonicalAndDigestAreDeterministicAndNonMutating(t *testing.T) {
 	conversation := conversationResource()
-	conversation.Record.Capabilities = []formset.CapabilityID{"write", "read"}
+	conversation.Record.Capabilities = []schema.CapabilityID{"write", "read"}
 	conversation.Record.Relations[0].Policy.AllowedTargets = []string{"workspace-b", "workspace-a"}
 	manifest := schema.Manifest{
 		Name:      "telegram-reader",
@@ -104,7 +103,7 @@ func TestManifestRejectsDuplicateContractValues(t *testing.T) {
 			Name: "x", Version: "1",
 			Resources: []schema.Resource{func() schema.Resource {
 				value := messageResource()
-				value.Record.Capabilities = []formset.CapabilityID{"read", "read"}
+				value.Record.Capabilities = []schema.CapabilityID{"read", "read"}
 				return value
 			}()},
 		},
@@ -118,15 +117,15 @@ func TestManifestRejectsDuplicateContractValues(t *testing.T) {
 	}
 }
 
-func TestManifestPreservesFormSetExtensionVocabulary(t *testing.T) {
+func TestManifestPreservesExtensionVocabulary(t *testing.T) {
 	manifest := schema.Manifest{
 		Name:    "extension",
 		Version: "1",
-		Resources: []schema.Resource{{Record: formset.RecordType{
+		Resources: []schema.Resource{{Record: schema.RecordType{
 			ID:         "custom",
 			Label:      "Custom",
-			Scope:      formset.Scope("product-scope"),
-			Fields:     []formset.Field{{ID: "value", Label: "Value", Type: formset.FieldType("product-field")}},
+			Scope:      schema.Scope("product-scope"),
+			Fields:     []schema.Field{{ID: "value", Label: "Value", Type: schema.FieldType("product-field")}},
 			Visibility: "product-visibility",
 		}}},
 	}
@@ -152,15 +151,15 @@ func TestEntryChromeFieldMustBeLocalized(t *testing.T) {
 }
 
 func TestFieldProfileRules(t *testing.T) {
-	valid := formset.Field{
-		ID: "count", Label: "Count", Type: formset.FieldNumber,
-		Rules: []formset.ValidationRule{{Name: schema.RuleInteger}},
+	valid := schema.Field{
+		ID: "count", Label: "Count", Type: schema.FieldNumber,
+		Rules: []schema.ValidationRule{{Name: schema.RuleInteger}},
 	}
 	if err := schema.ValidateFieldProfile(valid); err != nil {
 		t.Fatalf("ValidateFieldProfile() error = %v", err)
 	}
 	invalid := valid
-	invalid.Type = formset.FieldString
+	invalid.Type = schema.FieldString
 	if err := schema.ValidateFieldProfile(invalid); err == nil {
 		t.Fatal("ValidateFieldProfile() error = nil")
 	}
@@ -176,21 +175,21 @@ func productManifest() schema.Manifest {
 
 func conversationResource() schema.Resource {
 	return schema.Resource{
-		Record: formset.RecordType{
+		Record: schema.RecordType{
 			ID:            "conversation",
 			Label:         "Conversations",
 			SchemaVersion: "1",
 			OwnerModule:   "telegram-reader",
-			Scope:         formset.ScopeUser,
-			Fields: []formset.Field{
-				{ID: "telegram_chat_id", Label: "Telegram chat ID", Type: formset.FieldString, Required: true, Indexed: true},
-				{ID: "chat_type", Label: "Chat type", Type: formset.FieldSelect},
-				{ID: "messages", Label: "Messages", Type: formset.FieldRelation},
+			Scope:         schema.ScopeUser,
+			Fields: []schema.Field{
+				{ID: "telegram_chat_id", Label: "Telegram chat ID", Type: schema.FieldString, Required: true, Indexed: true},
+				{ID: "chat_type", Label: "Chat type", Type: schema.FieldSelect},
+				{ID: "messages", Label: "Messages", Type: schema.FieldRelation},
 			},
-			Relations: []formset.Relation{{
+			Relations: []schema.Relation{{
 				ID: "messages", Source: "conversation", Target: "message",
-				Cardinality:    formset.RelationOneToMany,
-				DeleteBehavior: formset.DeleteRestrict,
+				Cardinality:    schema.RelationOneToMany,
+				DeleteBehavior: schema.DeleteRestrict,
 			}},
 		},
 	}
@@ -198,19 +197,19 @@ func conversationResource() schema.Resource {
 
 func messageResource() schema.Resource {
 	return schema.Resource{
-		Record: formset.RecordType{
+		Record: schema.RecordType{
 			ID:            "message",
 			Label:         "Messages",
 			SchemaVersion: "1",
 			OwnerModule:   "telegram-reader",
-			Scope:         formset.ScopeUser,
-			Fields: []formset.Field{
+			Scope:         schema.ScopeUser,
+			Fields: []schema.Field{
 				{
 					ID: "telegram_message_id", Label: "Telegram message ID",
-					Type: formset.FieldNumber, Required: true, Indexed: true,
-					Rules: []formset.ValidationRule{{Name: schema.RuleInteger}},
+					Type: schema.FieldNumber, Required: true, Indexed: true,
+					Rules: []schema.ValidationRule{{Name: schema.RuleInteger}},
 				},
-				{ID: "content", Label: "Content", Type: formset.FieldText, Localized: true, Searchable: true},
+				{ID: "content", Label: "Content", Type: schema.FieldText, Localized: true, Searchable: true},
 			},
 		},
 		Taxonomies: []string{"message_type"},

@@ -12,33 +12,32 @@ their table shape is not part of Codex.
 
 ## Resource manifest
 
-`schema.Resource.Record` is a `formset.RecordType`. FormSet remains the sole
-owner of fields, relations, scopes, capabilities, options, validation rules,
-and form-binding semantics. Codex adds assigned taxonomy IDs and content-aware
-entry validation.
+`schema.Resource.Record` is a Codex `RecordType`. Codex owns fields, relations,
+scopes, capabilities, options, and entry-field validation. A form package may
+project those fields into editor slots. Codex does not import that package.
 
 ```go
 message := schema.Resource{
-	Record: formset.RecordType{
+	Record: schema.RecordType{
 		ID:            "message",
 		Label:         "Messages",
 		SchemaVersion: "1",
 		OwnerModule:   "telegram-reader",
-		Scope:         formset.ScopeUser,
-		Fields: []formset.Field{
+		Scope:         schema.ScopeUser,
+		Fields: []schema.Field{
 			{
 				ID:       "telegram_message_id",
 				Label:    "Telegram message ID",
-				Type:     formset.FieldNumber,
+				Type:     schema.FieldNumber,
 				Required: true,
-				Rules: []formset.ValidationRule{
+				Rules: []schema.ValidationRule{
 					{Name: schema.RuleInteger},
 				},
 			},
 			{
 				ID:         "content",
 				Label:      "Content",
-				Type:       formset.FieldText,
+				Type:       schema.FieldText,
 				Localized:  true,
 				Searchable: true,
 			},
@@ -68,29 +67,26 @@ their `Entry` maps. If a resource declares one of those IDs as localized and a
 locale document also carries it, both values must match. This preserves the
 existing entry chrome while keeping one resource-aware validation rule.
 
-`Resource.ValidateEntry` validates both FormSet constraints and Codex semantic
-rules. `Resource.PublicProjection` removes private metadata and every
-schema-sensitive field, including localized data.
+`Resource.ValidateEntry` checks declared field types and Codex semantic rules.
+`Resource.PublicProjection` removes private metadata and every sensitive field,
+including localized data.
 
 ## Codex field profile
 
-GoBackend concepts that are narrower than FormSet renderer types use
-namespaced rules:
+Names that are narrower than the base field type use namespaced rules:
 
-- `integer`, `decimal`, and `money` use `formset.FieldNumber`;
-- `date` uses `formset.FieldDateTime`;
-- `uri` and `uuid` use `formset.FieldString`;
-- JSON that may contain any JSON scalar or container uses
-  `formset.FieldJSON`;
+- `integer`, `decimal`, and `money` use `schema.FieldNumber`;
+- `date` uses `schema.FieldDateTime`;
+- `uri` and `uuid` use `schema.FieldString`;
+- JSON that may contain any JSON scalar or container uses `schema.FieldJSON`;
 - `nullable` and `read-only` remain explicit policy rules;
-- `enum` uses `formset.FieldSelect` and ordered `Options`;
+- `enum` uses `schema.FieldSelect` and ordered `Options`;
 - object and collection fields retain nested `Fields` and `Items`;
-- media is a `formset.FieldRelation` with `UIHintMedia` and an explicitly
+- media is a `schema.FieldRelation` with `UIHintMedia` and an explicitly
   declared media target resource.
 
-Rule constants use the `fastygo.codex/` namespace. Unknown FormSet field,
-scope, rule, and visibility values remain round-trippable so FormSet can evolve
-without a second Codex vocabulary.
+Rule constants use the `fastygo.codex/` namespace. Unknown non-empty field,
+scope, rule, and visibility values remain round-trippable.
 
 `read-only` is mutation policy, not value validity. `ValidateEntry` accepts a
 stored read-only value; application mutation adapters must reject client
@@ -107,7 +103,7 @@ and target resources exist.
 ## Locales
 
 `LocalizedText` covers built-in entry chrome. `LocaleDocument` holds one whole
-localized FormSet document. Locale fallback returns one complete document and
+localized field document. Locale fallback returns one complete document and
 never mixes fields from different locales. Products whose language is
 intentionally unspecified may use `und`.
 
@@ -121,8 +117,8 @@ concerns.
 
 ## Canonical identity and validation
 
-`Manifest.Canonical` sorts set-like declarations while preserving FormSet
-field and option order. `Manifest.Digest` returns a versioned SHA-256 identity
+`Manifest.Canonical` sorts set-like declarations while preserving field and
+option order. `Manifest.Digest` returns a versioned SHA-256 identity
 over canonical JSON.
 
 Validation failures expose stable `validation.Error` codes and paths.

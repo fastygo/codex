@@ -3,17 +3,15 @@
 ## Dependency direction
 
 ```text
-github.com/fastygo/formset
-          ↑
 github.com/fastygo/codex
           ↑
-GoBackend and product applications
+GoBackend, form projections, and product applications
 ```
 
-FormSet owns generic record fields, relations, validation hints, scopes, and
-capabilities. Codex adds content identity, lifecycle, resources, taxonomies,
-revisions, and localization. It has no dependency on GoBackend or a delivery
-protocol.
+Codex owns content identity, lifecycle, resources, fields, relations,
+taxonomies, revisions, and localization. It has no dependency on GoBackend,
+FormSet, or a delivery protocol. A form package may import Codex to project
+fields into editor slots.
 
 ## Packages
 
@@ -25,19 +23,18 @@ public projection, slug normalization, and protocol-neutral validation.
 
 ### `schema`
 
-Defines `Manifest` and `Resource`. `Resource.Record` is a FormSet `RecordType`,
-so there is one owner for field, form, and relation semantics. Resource adds
-assigned taxonomy identifiers and content-aware Entry validation.
+Defines `Manifest` and `Resource`. `Resource.Record` is a Codex `RecordType`.
+Resource adds assigned taxonomy identifiers and content-aware Entry validation.
 
-Manifest validation checks identifiers, uniqueness, FormSet validation,
+Manifest validation checks identifiers, uniqueness, field declarations,
 relation targets, taxonomy identifiers, and field/relation identity.
 Canonicalization sorts resources, relations, capabilities, and taxonomy names.
-It preserves FormSet field and option order because renderers may treat that
-order as presentation semantics.
+It preserves field and option order because renderers may treat that order as
+presentation semantics.
 
 `Field.Localized` is the storage discriminator: localized values live in
 `Entry.Locales`; all other declared values live in `Entry.Metadata`.
-`Resource.PublicProjection` applies FormSet sensitivity to both locations.
+`Resource.PublicProjection` applies field sensitivity to both locations.
 
 ### `taxonomy`
 

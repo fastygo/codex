@@ -4,11 +4,10 @@ import (
 	"strings"
 
 	"github.com/fastygo/codex/validation"
-	"github.com/fastygo/formset"
 )
 
-// Codex validation-rule names preserve content semantics that are more
-// specific than FormSet's renderer-oriented field types.
+// Codex validation-rule names preserve scalar semantics that are more
+// specific than the base field type.
 const (
 	RuleInteger  = "fastygo.codex/integer"
 	RuleDecimal  = "fastygo.codex/decimal"
@@ -23,25 +22,25 @@ const (
 
 const UIHintMedia = "media"
 
-func FieldRule(field formset.Field, name string) (formset.ValidationRule, bool) {
+func FieldRule(field Field, name string) (ValidationRule, bool) {
 	for _, rule := range field.Rules {
 		if rule.Name == name {
 			return rule, true
 		}
 	}
-	return formset.ValidationRule{}, false
+	return ValidationRule{}, false
 }
 
-// ValidateFieldProfile verifies Codex semantics layered on a FormSet field.
-func ValidateFieldProfile(field formset.Field) error {
+// ValidateFieldProfile verifies Codex semantics layered on a declared field.
+func ValidateFieldProfile(field Field) error {
 	return validateFieldProfile(field, false)
 }
 
-func validateFieldProfile(field formset.Field, nested bool) error {
+func validateFieldProfile(field Field, nested bool) error {
 	if nested && field.Localized {
 		return validation.New("schema.field.nested_localized", string(field.ID), "nested field cannot be localized")
 	}
-	if nested && field.Type == formset.FieldRelation {
+	if nested && field.Type == FieldRelation {
 		return validation.New("schema.field.nested_relation", string(field.ID), "relation field must be top-level")
 	}
 	seen := make(map[string]struct{}, len(field.Rules))
@@ -55,27 +54,27 @@ func validateFieldProfile(field formset.Field, nested bool) error {
 		seen[rule.Name] = struct{}{}
 		switch rule.Name {
 		case RuleInteger, RuleDecimal:
-			if field.Type != formset.FieldNumber {
+			if field.Type != FieldNumber {
 				return validation.New("schema.field.rule_type", string(field.ID), "numeric Codex rule requires number field")
 			}
 		case RuleMoney:
-			if field.Type != formset.FieldNumber {
+			if field.Type != FieldNumber {
 				return validation.New("schema.field.rule_type", string(field.ID), "money Codex rule requires number field")
 			}
 		case RuleDate:
-			if field.Type != formset.FieldDateTime {
+			if field.Type != FieldDateTime {
 				return validation.New("schema.field.rule_type", string(field.ID), "date Codex rule requires datetime field")
 			}
 		case RuleURI, RuleUUID:
-			if field.Type != formset.FieldString {
+			if field.Type != FieldString {
 				return validation.New("schema.field.rule_type", string(field.ID), "string Codex rule requires string field")
 			}
 		case RuleJSONAny:
-			if field.Type != formset.FieldJSON {
+			if field.Type != FieldJSON {
 				return validation.New("schema.field.rule_type", string(field.ID), "JSON-any Codex rule requires JSON field")
 			}
 		case RuleNullable, RuleReadOnly:
-			// These rules add policy without changing the FormSet renderer type.
+			// These rules add policy without changing the base field type.
 		}
 	}
 	if _, nullable := FieldRule(field, RuleNullable); nullable && field.Required {

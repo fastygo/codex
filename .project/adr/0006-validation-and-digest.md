@@ -18,7 +18,7 @@ paths. Human messages are not compatibility identifiers.
 serializes canonical JSON, and returns a versioned SHA-256 identifier with the
 `codex-manifest/v1:sha256:` prefix.
 
-FormSet field and option order remains semantic and is not sorted.
+Field and option order remains semantic and is not sorted.
 
 ## Consequences
 

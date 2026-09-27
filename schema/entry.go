@@ -14,7 +14,6 @@ import (
 
 	"github.com/fastygo/codex/content"
 	"github.com/fastygo/codex/validation"
-	"github.com/fastygo/formset"
 )
 
 func (resource Resource) ValidateEntry(entry content.Entry) error {
@@ -140,11 +139,11 @@ func (resource Resource) PublicProjection(entry content.Entry) (content.Entry, e
 	return projected, nil
 }
 
-func projectSensitive(field formset.Field, value any) (any, bool) {
+func projectSensitive(field Field, value any) (any, bool) {
 	if field.Sensitive {
 		return nil, false
 	}
-	if field.Type == formset.FieldObject {
+	if field.Type == FieldObject {
 		document, ok := value.(map[string]any)
 		if !ok {
 			return value, true
@@ -162,7 +161,7 @@ func projectSensitive(field formset.Field, value any) (any, bool) {
 			}
 		}
 	}
-	if field.Type == formset.FieldCollection && field.Items != nil {
+	if field.Type == FieldCollection && field.Items != nil {
 		if field.Items.Sensitive {
 			reflected := reflect.ValueOf(value)
 			if reflected.IsValid() && reflected.Kind() == reflect.Slice {
@@ -184,7 +183,7 @@ func projectSensitive(field formset.Field, value any) (any, bool) {
 	return value, true
 }
 
-func splitFields(fields []formset.Field) (shared, localized []formset.Field) {
+func splitFields(fields []Field) (shared, localized []Field) {
 	for _, field := range fields {
 		if field.Localized {
 			localized = append(localized, field)
@@ -195,37 +194,26 @@ func splitFields(fields []formset.Field) (shared, localized []formset.Field) {
 	return shared, localized
 }
 
-func bindFields(record formset.RecordType, fields []formset.Field, locale string, values map[string]any) error {
+func bindFields(_ RecordType, fields []Field, locale string, values map[string]any) error {
 	if len(fields) == 0 {
 		return nil
 	}
-	projected := record
-	projected.Fields = fields
-	projected.Relations = nil
-	formValues := make(map[string]any, len(values))
+	normalized := make(map[string]any, len(values))
 	for key, value := range values {
-		formValues[key] = valueForFormSet(value)
+		normalized[key] = normalizeValue(value)
 	}
-	form, err := formset.BindLocale(projected, locale, formValues)
-	if err != nil {
-		return err
-	}
-	if len(form.Issues) == 0 {
+	issues := bindDeclared(fields, normalized)
+	if len(issues) == 0 {
 		return nil
 	}
-	parts := make([]string, 0, len(form.Issues))
-	for _, issue := range form.Issues {
-		parts = append(parts, issue.Field+":"+issue.Code)
-	}
-	slices.Sort(parts)
 	return validation.New(
-		"schema.entry.formset_invalid",
+		"schema.entry.field_invalid",
 		locale,
-		"entry field validation failed: "+strings.Join(parts, ","),
+		"entry field validation failed: "+formatFieldIssues(issues),
 	)
 }
 
-func valueForFormSet(value any) any {
+func normalizeValue(value any) any {
 	switch typed := value.(type) {
 	case json.Number:
 		if integer, err := typed.Int64(); err == nil {
@@ -238,13 +226,13 @@ func valueForFormSet(value any) any {
 	case map[string]any:
 		cloned := make(map[string]any, len(typed))
 		for key, nested := range typed {
-			cloned[key] = valueForFormSet(nested)
+			cloned[key] = normalizeValue(nested)
 		}
 		return cloned
 	case []any:
 		cloned := make([]any, len(typed))
 		for index, nested := range typed {
-			cloned[index] = valueForFormSet(nested)
+			cloned[index] = normalizeValue(nested)
 		}
 		return cloned
 	default:
@@ -308,11 +296,11 @@ func validateRelationValues(resource Resource, metadata map[string]content.Metad
 			continue
 		}
 		switch relation.Cardinality {
-		case formset.RelationOneToOne:
+		case RelationOneToOne:
 			if !nonEmptyID(value.Value) {
 				return validation.New("schema.entry.relation_scalar", string(relation.ID), "relation requires one id")
 			}
-		case formset.RelationOneToMany, formset.RelationManyToMany:
+		case RelationOneToMany, RelationManyToMany:
 			if !idCollection(value.Value) {
 				return validation.New("schema.entry.relation_array", string(relation.ID), "relation requires an id array")
 			}
@@ -347,7 +335,7 @@ func idCollection(value any) bool {
 	return true
 }
 
-func validateCodexRules(field formset.Field, value any) error {
+func validateCodexRules(field Field, value any) error {
 	if value == nil {
 		if _, nullable := FieldRule(field, RuleNullable); nullable {
 			return nil

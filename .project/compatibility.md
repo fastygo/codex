@@ -13,26 +13,28 @@ already adopted the module.
 
 ## Deliberate changes
 
-### FormSet schema ownership
+### Field ownership
 
 GoBackend currently defines a second field/relation vocabulary. Public Codex
-uses `github.com/fastygo/formset` types plus namespaced Codex rules.
+owns `schema.RecordType`, `schema.Field`, and `schema.Relation`, plus
+namespaced Codex rules. FormSet is not imported. A later adapter projects
+these fields into editor forms.
 
 The migration profile is:
 
 - `string`, `text`, `boolean`, `number`, `datetime`, `json`, `collection`,
-  `object`, `richtext`, and `markdown` map to their same-named FormSet types;
+  `object`, `richtext`, and `markdown` map to their same-named Codex field types;
 - `integer`, `decimal`, and `money` map to `FieldNumber` plus the matching
   `fastygo.codex/` rule;
 - `date` maps to `FieldDateTime` plus `fastygo.codex/date`;
 - `uri` and `uuid` map to `FieldString` plus their semantic rule;
-- `enum` maps to `FieldSelect` with ordered FormSet options;
+- `enum` maps to `FieldSelect` with ordered options;
 - `nullable` and `read-only` map to namespaced rules; required plus nullable is
   invalid;
-- `sensitive` and `localized` map directly to FormSet flags;
+- `sensitive` and `localized` map directly to field flags;
 - `media` maps to a relation field with `schema.UIHintMedia` and an explicitly
   declared media target resource;
-- GoBackend one/many relation values map to FormSet one-to-one/array
+- GoBackend one/many relation values map to one-to-one and array
   cardinalities, with the relation ID equal to the field ID.
 
 GoBackend's separate `Fields` and `Form` lists become one ordered
@@ -45,10 +47,9 @@ chrome and locale documents.
 No lossy automatic conversion belongs in Codex. The adapter is implemented and
 proven in GoBackend when that repository adopts a released version.
 
-Current FormSet string vocabularies are extensible: validation accepts
-non-empty custom field types, scopes, and cardinalities. Codex preserves that
-owner decision. GoBackend or a UI adapter may enforce its own closed supported
-profile without changing the shared declaration.
+Field type, scope, and cardinality strings stay extensible: validation accepts
+a non-empty custom value. GoBackend or a UI adapter may enforce its own closed
+supported profile without changing the shared declaration.
 
 ### Stable JSON
 
@@ -104,6 +105,5 @@ Before GoBackend imports Codex:
 
 ## Pre-v1 dependency
 
-Codex currently exposes FormSet contract types from a pre-v1 release. Codex
-therefore remains pre-v1 until FormSet compatibility is stable and GoBackend
-adoption proves the combined API. Consumers must pin an exact Codex version.
+Codex remains pre-v1 until GoBackend adoption proves the public API.
+Consumers must pin an exact Codex version.

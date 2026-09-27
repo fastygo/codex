@@ -10,14 +10,13 @@ import (
 
 	"github.com/fastygo/codex/content"
 	"github.com/fastygo/codex/validation"
-	"github.com/fastygo/formset"
 )
 
 const ManifestDigestPrefix = "codex-manifest/v1:sha256:"
 
 type Resource struct {
-	Record     formset.RecordType `json:"record"`
-	Taxonomies []string           `json:"taxonomies,omitempty"`
+	Record     RecordType `json:"record"`
+	Taxonomies []string   `json:"taxonomies,omitempty"`
 }
 
 type Manifest struct {
@@ -34,9 +33,8 @@ func (manifest Manifest) Validate() error {
 		return validation.New("schema.manifest.version_required", "version", "manifest version is required")
 	}
 
-	records := make([]formset.RecordType, 0, len(manifest.Resources))
-	resourceIDs := make(map[formset.RecordTypeID]struct{}, len(manifest.Resources))
-	relations := map[formset.RelationID]formset.Relation{}
+	resourceIDs := make(map[RecordTypeID]struct{}, len(manifest.Resources))
+	relations := map[RelationID]Relation{}
 	for _, resource := range manifest.Resources {
 		if err := resource.Validate(); err != nil {
 			return validation.Wrap("schema.manifest.resource_invalid", string(resource.Record.ID), err)
@@ -45,7 +43,6 @@ func (manifest Manifest) Validate() error {
 			return validation.New("schema.manifest.resource_duplicated", string(resource.Record.ID), "resource identifier is duplicated")
 		}
 		resourceIDs[resource.Record.ID] = struct{}{}
-		records = append(records, resource.Record)
 		for _, relation := range resource.Record.Relations {
 			if _, exists := relations[relation.ID]; exists {
 				return validation.New("schema.manifest.relation_duplicated", string(relation.ID), "relation identifier is duplicated")
@@ -54,9 +51,8 @@ func (manifest Manifest) Validate() error {
 		}
 	}
 
-	report := formset.ReviewSchema(records, nil)
-	if report.HasErrors() {
-		return validation.New("schema.manifest.formset_invalid", "resources", report.Summary())
+	if err := reviewRelations(manifest.Resources); err != nil {
+		return err
 	}
 	for _, resource := range manifest.Resources {
 		if err := validateRelationFields(resource, relations); err != nil {
@@ -71,7 +67,7 @@ func (resource Resource) Validate() error {
 		return validation.New("schema.resource.id_invalid", "record.id", "resource identifier is invalid")
 	}
 	if err := resource.Record.Validate(); err != nil {
-		return validation.Wrap("schema.resource.formset_invalid", "record", err)
+		return validation.Wrap("schema.resource.record_invalid", "record", err)
 	}
 	for _, field := range resource.Record.Fields {
 		if isEntryChromeField(field.ID) && !field.Localized {
@@ -85,7 +81,7 @@ func (resource Resource) Validate() error {
 			return err
 		}
 	}
-	capabilities := make(map[formset.CapabilityID]struct{}, len(resource.Record.Capabilities))
+	capabilities := make(map[CapabilityID]struct{}, len(resource.Record.Capabilities))
 	for _, capability := range resource.Record.Capabilities {
 		if strings.TrimSpace(string(capability)) == "" {
 			return validation.New("schema.resource.capability_invalid", "record.capabilities", "resource capability is invalid")
@@ -117,7 +113,7 @@ func (resource Resource) Validate() error {
 			allowedTargets[target] = struct{}{}
 		}
 	}
-	relations := make(map[formset.RelationID]formset.Relation, len(resource.Record.Relations))
+	relations := make(map[RelationID]Relation, len(resource.Record.Relations))
 	for _, relation := range resource.Record.Relations {
 		if _, exists := relations[relation.ID]; exists {
 			return validation.New("schema.resource.relation_duplicated", string(relation.ID), "relation identifier is duplicated")
@@ -127,7 +123,7 @@ func (resource Resource) Validate() error {
 	return validateRelationFields(resource, relations)
 }
 
-func isEntryChromeField(fieldID formset.FieldID) bool {
+func isEntryChromeField(fieldID FieldID) bool {
 	switch fieldID {
 	case "slug", "title", "content", "excerpt":
 		return true
@@ -138,7 +134,7 @@ func isEntryChromeField(fieldID formset.FieldID) bool {
 
 func (manifest Manifest) Resource(kind content.Kind) (Resource, bool) {
 	for _, resource := range manifest.Resources {
-		if resource.Record.ID == formset.RecordTypeID(kind) {
+		if resource.Record.ID == RecordTypeID(kind) {
 			return resource.Clone(), true
 		}
 	}
@@ -146,7 +142,7 @@ func (manifest Manifest) Resource(kind content.Kind) (Resource, bool) {
 }
 
 // Canonical returns a clone with deterministic ordering for set-like values.
-// Field and option order is preserved because FormSet renderers may use it.
+// Field and option order is preserved because renderers may use it.
 func (manifest Manifest) Canonical() Manifest {
 	canonical := manifest.Clone()
 	slices.SortFunc(canonical.Resources, func(left, right Resource) int {
@@ -156,7 +152,7 @@ func (manifest Manifest) Canonical() Manifest {
 		resource := &canonical.Resources[index]
 		slices.Sort(resource.Taxonomies)
 		slices.Sort(resource.Record.Capabilities)
-		slices.SortFunc(resource.Record.Relations, func(left, right formset.Relation) int {
+		slices.SortFunc(resource.Record.Relations, func(left, right Relation) int {
 			return strings.Compare(string(left.ID), string(right.ID))
 		})
 		for relationIndex := range resource.Record.Relations {
@@ -192,27 +188,27 @@ func (resource Resource) Clone() Resource {
 	cloned.Record = resource.Record
 	cloned.Record.Fields = cloneFields(resource.Record.Fields)
 	cloned.Record.Relations = cloneRelations(resource.Record.Relations)
-	cloned.Record.Capabilities = append([]formset.CapabilityID(nil), resource.Record.Capabilities...)
+	cloned.Record.Capabilities = append([]CapabilityID(nil), resource.Record.Capabilities...)
 	cloned.Taxonomies = append([]string(nil), resource.Taxonomies...)
 	return cloned
 }
 
-func cloneFields(fields []formset.Field) []formset.Field {
+func cloneFields(fields []Field) []Field {
 	if fields == nil {
 		return nil
 	}
-	cloned := make([]formset.Field, len(fields))
+	cloned := make([]Field, len(fields))
 	for index, field := range fields {
 		cloned[index] = cloneField(field)
 	}
 	return cloned
 }
 
-func cloneField(field formset.Field) formset.Field {
+func cloneField(field Field) Field {
 	cloned := field
-	cloned.Options = append([]formset.Option(nil), field.Options...)
+	cloned.Options = append([]Option(nil), field.Options...)
 	if field.Rules != nil {
-		cloned.Rules = make([]formset.ValidationRule, len(field.Rules))
+		cloned.Rules = make([]ValidationRule, len(field.Rules))
 		for index, rule := range field.Rules {
 			cloned.Rules[index] = rule
 			if rule.Args != nil {
@@ -231,11 +227,11 @@ func cloneField(field formset.Field) formset.Field {
 	return cloned
 }
 
-func cloneRelations(relations []formset.Relation) []formset.Relation {
+func cloneRelations(relations []Relation) []Relation {
 	if relations == nil {
 		return nil
 	}
-	cloned := make([]formset.Relation, len(relations))
+	cloned := make([]Relation, len(relations))
 	copy(cloned, relations)
 	for index, relation := range relations {
 		cloned[index].Policy.AllowedTargets = append([]string(nil), relation.Policy.AllowedTargets...)
@@ -243,8 +239,8 @@ func cloneRelations(relations []formset.Relation) []formset.Relation {
 	return cloned
 }
 
-func validateRelationFields(resource Resource, relations map[formset.RelationID]formset.Relation) error {
-	fields := make(map[formset.FieldID]formset.Field, len(resource.Record.Fields))
+func validateRelationFields(resource Resource, relations map[RelationID]Relation) error {
+	fields := make(map[FieldID]Field, len(resource.Record.Fields))
 	for _, field := range resource.Record.Fields {
 		fields[field.ID] = field
 	}
@@ -252,11 +248,11 @@ func validateRelationFields(resource Resource, relations map[formset.RelationID]
 		if relation.Source != resource.Record.ID {
 			return validation.New("schema.relation.source_mismatch", string(relation.ID), "relation source does not match owning resource")
 		}
-		field, exists := fields[formset.FieldID(relation.ID)]
+		field, exists := fields[FieldID(relation.ID)]
 		if !exists {
 			return validation.New("schema.relation.field_missing", string(relation.ID), "relation requires a field with the same id")
 		}
-		if field.Type != formset.FieldRelation {
+		if field.Type != FieldRelation {
 			return validation.New("schema.relation.field_type", string(relation.ID), "relation field has invalid type")
 		}
 		if field.Localized {
@@ -264,10 +260,10 @@ func validateRelationFields(resource Resource, relations map[formset.RelationID]
 		}
 	}
 	for _, field := range resource.Record.Fields {
-		if field.Type != formset.FieldRelation {
+		if field.Type != FieldRelation {
 			continue
 		}
-		relation, exists := relations[formset.RelationID(field.ID)]
+		relation, exists := relations[RelationID(field.ID)]
 		if !exists {
 			return validation.New("schema.relation.missing", string(field.ID), "relation field has no relation")
 		}

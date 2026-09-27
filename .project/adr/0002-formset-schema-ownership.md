@@ -1,6 +1,6 @@
 # ADR-0002: FormSet owns fields and relations
 
-- Status: Accepted
+- Status: Superseded by ADR-0007
 - Date: 2026-09-09
 
 ## Context

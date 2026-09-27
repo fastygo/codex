@@ -15,7 +15,7 @@ for:
 
 - entries and content lifecycle;
 - manifest-backed resource kinds;
-- FormSet-backed fields, relations, scopes, and capabilities;
+- fields, relations, scopes, and capabilities;
 - taxonomy definitions, terms, and assignments;
 - revision snapshots;
 - localization, validation, canonicalization, and conformance.
@@ -28,9 +28,9 @@ products may consume Codex immediately without importing GoBackend.
 - public Go packages with stable JSON representations;
 - deterministic canonicalization and validation;
 - resource-aware Entry validation and sensitivity projection;
-- a lossless FormSet profile for current GoBackend field semantics;
+- field semantics that a later form projection can render without loss;
 - versioned manifest digests and machine-readable validation failures;
-- reproducible FormSet dependency from GitHub;
+- no FormSet import in this module;
 - conformance fixtures and tests;
 - migration documentation for current GoBackend internal types.
 
@@ -46,8 +46,7 @@ products may consume Codex immediately without importing GoBackend.
 
 ## Compatibility promise
 
-Codex remains pre-v1 while its public FormSet dependency is pre-v1 and the
-GoBackend migration is unproven. During `v0.x`, breaking changes require an
+Codex remains pre-v1 while the GoBackend migration is unproven. During `v0.x`, breaking changes require an
 explicit migration note and a new minor release. After the first stable
 release, breaking type, JSON, lifecycle, or canonicalization changes require a
 major version. Product kinds remain manifest data and never become hard-coded
