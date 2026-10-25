@@ -1,0 +1,55 @@
+{
+ "profile": "codex-term/v1",
+ "cases": [
+  {
+   "name": "minimal: required fields only",
+   "input_text": "{\"id\":\"cat-news\",\"locale\":\"en\",\"taxonomy_id\":\"category\",\"name\":\"News\",\"slug\":\"news\",\"version\":1,\"created_at\":\"2026-10-25T11:09:00Z\",\"updated_at\":\"2026-10-25T11:09:00Z\"}",
+   "canonical": "{\"created_at\":\"2026-10-25T11:09:00Z\",\"id\":\"cat-news\",\"locale\":\"en\",\"name\":\"News\",\"slug\":\"news\",\"taxonomy_id\":\"category\",\"updated_at\":\"2026-10-25T11:09:00Z\",\"version\":1}",
+   "digest": "codex-term/v1:sha256:892d617e9f899dcb5fa54dbbdf61c9c110ad3c64ce35646d0aaef3119e4f88e0"
+  },
+  {
+   "name": "full: every field, origin order kept, private metadata dropped",
+   "input_text": "{\"id\":\"cat-news\",\"locale\":\"ru\",\"taxonomy_id\":\"category\",\"name\":\"Новости\",\"slug\":\"news\",\"version\":3,\"created_at\":\"2026-10-25T11:09:00Z\",\"updated_at\":\"2026-10-25T12:00:00Z\",\"description\":\"Всё о проекте\",\"parent_id\":\"cat-root\",\"origin\":[{\"system\":\"wordpress\",\"id\":\"7\"},{\"system\":\"csv\",\"id\":\"news\"}],\"metadata\":{\"color\":{\"value\":\"#ff0000\"},\"order\":{\"value\":2,\"private\":false},\"extra\":{\"value\":{\"b\":[],\"a\":{},\"c\":\"\"}},\"secret\":{\"value\":\"x\",\"private\":true}}}",
+   "canonical": "{\"created_at\":\"2026-10-25T11:09:00Z\",\"description\":\"Всё о проекте\",\"id\":\"cat-news\",\"locale\":\"ru\",\"metadata\":{\"color\":{\"value\":\"#ff0000\"},\"extra\":{\"value\":{\"a\":{},\"b\":[],\"c\":\"\"}},\"order\":{\"value\":2}},\"name\":\"Новости\",\"origin\":[{\"id\":\"7\",\"system\":\"wordpress\"},{\"id\":\"news\",\"system\":\"csv\"}],\"parent_id\":\"cat-root\",\"slug\":\"news\",\"taxonomy_id\":\"category\",\"updated_at\":\"2026-10-25T12:00:00Z\",\"version\":3}",
+   "digest": "codex-term/v1:sha256:7eb92a669191eb62ec48d3e897cb3443f32354267a30ebaed3faca65b3c07b76"
+  },
+  {
+   "name": "full with keys reversed at every level and whitespace: same digest as full",
+   "input_text": "{\n  \"metadata\": {\n    \"secret\": {\n      \"private\": true,\n      \"value\": \"x\"\n    },\n    \"extra\": {\n      \"value\": {\n        \"c\": \"\",\n        \"a\": {},\n        \"b\": []\n      }\n    },\n    \"order\": {\n      \"private\": false,\n      \"value\": 2\n    },\n    \"color\": {\n      \"value\": \"#ff0000\"\n    }\n  },\n  \"origin\": [\n    {\n      \"id\": \"7\",\n      \"system\": \"wordpress\"\n    },\n    {\n      \"id\": \"news\",\n      \"system\": \"csv\"\n    }\n  ],\n  \"parent_id\": \"cat-root\",\n  \"description\": \"Всё о проекте\",\n  \"updated_at\": \"2026-10-25T12:00:00Z\",\n  \"created_at\": \"2026-10-25T11:09:00Z\",\n  \"version\": 3,\n  \"slug\": \"news\",\n  \"name\": \"Новости\",\n  \"taxonomy_id\": \"category\",\n  \"locale\": \"ru\",\n  \"id\": \"cat-news\"\n}\n",
+   "canonical": "{\"created_at\":\"2026-10-25T11:09:00Z\",\"description\":\"Всё о проекте\",\"id\":\"cat-news\",\"locale\":\"ru\",\"metadata\":{\"color\":{\"value\":\"#ff0000\"},\"extra\":{\"value\":{\"a\":{},\"b\":[],\"c\":\"\"}},\"order\":{\"value\":2}},\"name\":\"Новости\",\"origin\":[{\"id\":\"7\",\"system\":\"wordpress\"},{\"id\":\"news\",\"system\":\"csv\"}],\"parent_id\":\"cat-root\",\"slug\":\"news\",\"taxonomy_id\":\"category\",\"updated_at\":\"2026-10-25T12:00:00Z\",\"version\":3}",
+   "digest": "codex-term/v1:sha256:7eb92a669191eb62ec48d3e897cb3443f32354267a30ebaed3faca65b3c07b76",
+   "same_digest_as": "full: every field, origin order kept, private metadata dropped"
+  },
+  {
+   "name": "full with computed count: count is dropped, same digest as full",
+   "input_text": "{\"count\":42,\"id\":\"cat-news\",\"locale\":\"ru\",\"taxonomy_id\":\"category\",\"name\":\"Новости\",\"slug\":\"news\",\"version\":3,\"created_at\":\"2026-10-25T11:09:00Z\",\"updated_at\":\"2026-10-25T12:00:00Z\",\"description\":\"Всё о проекте\",\"parent_id\":\"cat-root\",\"origin\":[{\"system\":\"wordpress\",\"id\":\"7\"},{\"system\":\"csv\",\"id\":\"news\"}],\"metadata\":{\"color\":{\"value\":\"#ff0000\"},\"order\":{\"value\":2,\"private\":false},\"extra\":{\"value\":{\"b\":[],\"a\":{},\"c\":\"\"}},\"secret\":{\"value\":\"x\",\"private\":true}}}",
+   "canonical": "{\"created_at\":\"2026-10-25T11:09:00Z\",\"description\":\"Всё о проекте\",\"id\":\"cat-news\",\"locale\":\"ru\",\"metadata\":{\"color\":{\"value\":\"#ff0000\"},\"extra\":{\"value\":{\"a\":{},\"b\":[],\"c\":\"\"}},\"order\":{\"value\":2}},\"name\":\"Новости\",\"origin\":[{\"id\":\"7\",\"system\":\"wordpress\"},{\"id\":\"news\",\"system\":\"csv\"}],\"parent_id\":\"cat-root\",\"slug\":\"news\",\"taxonomy_id\":\"category\",\"updated_at\":\"2026-10-25T12:00:00Z\",\"version\":3}",
+   "digest": "codex-term/v1:sha256:7eb92a669191eb62ec48d3e897cb3443f32354267a30ebaed3faca65b3c07b76",
+   "same_digest_as": "full: every field, origin order kept, private metadata dropped"
+  },
+  {
+   "name": "dates with .000 and +03:00 offset normalize to Z: same digest as minimal",
+   "input_text": "{\"id\":\"cat-news\",\"locale\":\"en\",\"taxonomy_id\":\"category\",\"name\":\"News\",\"slug\":\"news\",\"version\":1,\"created_at\":\"2026-10-25T14:09:00.000+03:00\",\"updated_at\":\"2026-10-25T11:09:00.000Z\"}",
+   "canonical": "{\"created_at\":\"2026-10-25T11:09:00Z\",\"id\":\"cat-news\",\"locale\":\"en\",\"name\":\"News\",\"slug\":\"news\",\"taxonomy_id\":\"category\",\"updated_at\":\"2026-10-25T11:09:00Z\",\"version\":1}",
+   "digest": "codex-term/v1:sha256:892d617e9f899dcb5fa54dbbdf61c9c110ad3c64ce35646d0aaef3119e4f88e0",
+   "same_digest_as": "minimal: required fields only"
+  },
+  {
+   "name": "empty optional top-level fields and all-private metadata are dropped: same digest as minimal",
+   "input_text": "{\"id\":\"cat-news\",\"locale\":\"en\",\"taxonomy_id\":\"category\",\"name\":\"News\",\"slug\":\"news\",\"version\":1,\"created_at\":\"2026-10-25T11:09:00Z\",\"updated_at\":\"2026-10-25T11:09:00Z\",\"description\":\"\",\"parent_id\":\"\",\"origin\":[],\"metadata\":{\"s\":{\"value\":1,\"private\":true}}}",
+   "canonical": "{\"created_at\":\"2026-10-25T11:09:00Z\",\"id\":\"cat-news\",\"locale\":\"en\",\"name\":\"News\",\"slug\":\"news\",\"taxonomy_id\":\"category\",\"updated_at\":\"2026-10-25T11:09:00Z\",\"version\":1}",
+   "digest": "codex-term/v1:sha256:892d617e9f899dcb5fa54dbbdf61c9c110ad3c64ce35646d0aaef3119e4f88e0",
+   "same_digest_as": "minimal: required fields only"
+  },
+  {
+   "name": "error: integer literal above 2^53-1",
+   "input_text": "{\"id\":\"cat-news\",\"locale\":\"en\",\"taxonomy_id\":\"category\",\"name\":\"News\",\"slug\":\"news\",\"version\":9007199254740993,\"created_at\":\"2026-10-25T11:09:00Z\",\"updated_at\":\"2026-10-25T11:09:00Z\"}",
+   "error": "canonical.unsafe_integer"
+  },
+  {
+   "name": "error: id not matching the id rule",
+   "input_text": "{\"id\":\"cat news\",\"locale\":\"en\",\"taxonomy_id\":\"category\",\"name\":\"News\",\"slug\":\"news\",\"version\":1,\"created_at\":\"2026-10-25T11:09:00Z\",\"updated_at\":\"2026-10-25T11:09:00Z\"}",
+   "error": "canonical.invalid_id"
+  }
+ ]
+}

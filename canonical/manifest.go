@@ -2,7 +2,7 @@ package canonical
 
 import "fmt"
 
-// MANIFEST_SHAPE from @ui8kit/contract src/canonical.ts (commit a70c243),
+// MANIFEST_SHAPE from @ui8kit/contract src/canonical.ts (commit d05ee75),
 // matching schemas/manifest.schema.json property names exactly.
 type manifestShape struct {
 	keys     []string

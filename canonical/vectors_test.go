@@ -144,54 +144,61 @@ func TestOfficialManifestVectors(t *testing.T) {
 	}
 }
 
-func TestOfficialTermSettingsVectorsPending(t *testing.T) {
-	for _, name := range []string{"term.json", "settings.json"} {
-		path := filepath.Join("..", "conformance", "contract", "fixtures", "vectors", name)
-		if _, err := os.Stat(path); err != nil {
-			t.Logf("TODO: %s is not in the contract pin yet", name)
-			continue
-		}
-		file := loadVectorFile(t, name)
-		canonicalize := canonical.CanonicalizeTerm
-		digestFn := canonical.TermDigest
-		profile := canonical.TermProfile
-		if name == "settings.json" {
-			canonicalize = canonical.CanonicalizeSettings
-			digestFn = canonical.SettingsDigest
-			profile = canonical.SettingsProfile
-		}
-		if file.Profile != profile {
-			t.Fatalf("%s profile = %q, want %q", name, file.Profile, profile)
-		}
-		for _, c := range file.Cases {
-			c := c
-			t.Run(name+"/"+c.Name, func(t *testing.T) {
-				if c.Error != "" {
-					_, err := canonicalize(c.InputText)
-					if err == nil {
-						t.Fatalf("error = nil, want %s", c.Error)
-					}
-					if got := canonical.Code(err); got != c.Error {
-						t.Fatalf("error code = %q, want %q", got, c.Error)
-					}
-					return
+func TestOfficialTermVectors(t *testing.T) {
+	runRecordVectors(t, "term.json", canonical.TermProfile, canonical.CanonicalizeTerm, canonical.TermDigest)
+}
+
+func TestOfficialSettingsVectors(t *testing.T) {
+	runRecordVectors(t, "settings.json", canonical.SettingsProfile, canonical.CanonicalizeSettings, canonical.SettingsDigest)
+}
+
+func runRecordVectors(t *testing.T, name, profile string, canonicalize, digestFn func(string) (string, error)) {
+	t.Helper()
+	file := loadVectorFile(t, name)
+	if file.Profile != profile {
+		t.Fatalf("%s profile = %q, want %q", name, file.Profile, profile)
+	}
+	if len(file.Cases) == 0 {
+		t.Fatalf("%s has no cases", name)
+	}
+	for _, c := range file.Cases {
+		c := c
+		t.Run(c.Name, func(t *testing.T) {
+			if c.Error != "" {
+				_, err := canonicalize(c.InputText)
+				if err == nil {
+					t.Fatalf("error = nil, want %s", c.Error)
 				}
-				out, err := canonicalize(c.InputText)
-				if err != nil {
-					t.Fatalf("canonicalize error = %v", err)
+				if got := canonical.Code(err); got != c.Error {
+					t.Fatalf("error code = %q, want %q (err = %v)", got, c.Error, err)
 				}
-				if out != c.Canonical {
-					t.Fatalf("canonical mismatch\n got %s\nwant %s", out, c.Canonical)
+				if _, err := digestFn(c.InputText); err == nil {
+					t.Fatal("digest error = nil")
 				}
-				digest, err := digestFn(c.InputText)
-				if err != nil {
-					t.Fatalf("digest error = %v", err)
-				}
-				if digest != c.Digest {
-					t.Fatalf("digest = %q, want %q", digest, c.Digest)
-				}
-			})
-		}
+				return
+			}
+			out, err := canonicalize(c.InputText)
+			if err != nil {
+				t.Fatalf("canonicalize error = %v", err)
+			}
+			if out != c.Canonical {
+				t.Fatalf("canonical mismatch\n got %s\nwant %s", out, c.Canonical)
+			}
+			digest, err := digestFn(c.InputText)
+			if err != nil {
+				t.Fatalf("digest error = %v", err)
+			}
+			if digest != c.Digest {
+				t.Fatalf("digest = %q, want %q", digest, c.Digest)
+			}
+			again, err := canonicalize(out)
+			if err != nil {
+				t.Fatalf("idempotent canonicalize error = %v", err)
+			}
+			if again != out {
+				t.Fatal("canonical form is not idempotent")
+			}
+		})
 	}
 }
 

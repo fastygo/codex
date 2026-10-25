@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// Closed-record keys from @ui8kit/contract KEYS_V04 / REQUIRED_V04 (commit a70c243).
+// Closed-record keys from @ui8kit/contract KEYS_V04 / REQUIRED_V04 (commit d05ee75).
 var (
 	entryKeys = []string{
 		"id", "locale", "kind", "status", "visibility", "slug", "title", "content", "excerpt",

@@ -47,6 +47,13 @@ func TestCanonicalizeTermDropsCountAndOmitsEmptyOptionals(t *testing.T) {
 	}
 }
 
+func TestCanonicalizeTermCountUnsafeIntegerIsParserError(t *testing.T) {
+	_, err := canonical.CanonicalizeTerm(`{"count":9007199254740993,"id":"cat-news","locale":"en","taxonomy_id":"category","name":"News","slug":"news","version":1,"created_at":"2026-10-25T11:09:00Z","updated_at":"2026-10-25T11:09:00Z"}`)
+	if canonical.Code(err) != canonical.ErrUnsafeInteger {
+		t.Fatalf("unsafe count code = %q err = %v", canonical.Code(err), err)
+	}
+}
+
 func TestCanonicalizeTermRejectsUnknownAndUnsafe(t *testing.T) {
 	_, err := canonical.CanonicalizeTerm(`{"id":"term-1","locale":"en","taxonomy_id":"category","name":"News","slug":"news","version":1,"created_at":"2026-10-25T08:09:00Z","updated_at":"2026-10-25T08:09:00Z","extra":1}`)
 	if canonical.Code(err) != canonical.ErrUnknownField {

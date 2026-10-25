@@ -3,7 +3,7 @@
 # Usage: scripts/refresh-ui8kit-contract.sh [commit]
 set -euo pipefail
 
-COMMIT="${1:-a70c243}"
+COMMIT="${1:-d05ee75}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$ROOT/conformance/contract"
 TMP="$(mktemp -d)"

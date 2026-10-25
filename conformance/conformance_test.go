@@ -202,14 +202,13 @@ func TestContractPin(t *testing.T) {
 		t.Fatalf("contract pin: %v", err)
 	}
 	text := string(data)
-	if !strings.Contains(text, "a70c243") {
+	if !strings.Contains(text, "d05ee75") {
 		t.Fatalf("unexpected contract pin:\n%s", text)
 	}
-	if _, err := os.Stat("contract/fixtures/vectors/canonical.json"); err != nil {
-		t.Fatalf("official entry vectors: %v", err)
-	}
-	if _, err := os.Stat("contract/fixtures/vectors/manifest.json"); err != nil {
-		t.Fatalf("official manifest vectors: %v", err)
+	for _, name := range []string{"canonical.json", "manifest.json", "term.json", "settings.json"} {
+		if _, err := os.Stat("contract/fixtures/vectors/" + name); err != nil {
+			t.Fatalf("official vectors %s: %v", name, err)
+		}
 	}
 }
 

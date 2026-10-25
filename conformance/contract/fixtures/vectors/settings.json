@@ -1,0 +1,48 @@
+{
+ "profile": "codex-settings/v1",
+ "cases": [
+  {
+   "name": "minimal: required fields only",
+   "input_text": "{\"id\":\"site\",\"locale\":\"en\",\"title\":\"Studio\",\"language\":\"en-US\",\"version\":1,\"created_at\":\"2026-10-25T11:09:00Z\",\"updated_at\":\"2026-10-25T11:09:00Z\"}",
+   "canonical": "{\"created_at\":\"2026-10-25T11:09:00Z\",\"id\":\"site\",\"language\":\"en-US\",\"locale\":\"en\",\"title\":\"Studio\",\"updated_at\":\"2026-10-25T11:09:00Z\",\"version\":1}",
+   "digest": "codex-settings/v1:sha256:13db2f7f7a20069969584302eedcc440d99ee553b254ece4d9ca909eb5af2164"
+  },
+  {
+   "name": "full: every field, comments_open false kept, private metadata dropped",
+   "input_text": "{\"id\":\"site\",\"locale\":\"ru\",\"title\":\"Студия\",\"language\":\"ru-RU\",\"version\":5,\"created_at\":\"2026-10-25T11:09:00Z\",\"updated_at\":\"2026-10-25T11:09:00Z\",\"description\":\"Сайт студии\",\"timezone\":\"Europe/Moscow\",\"logo_media_id\":\"media-11\",\"icon_media_id\":\"media-19\",\"front_page_id\":\"page-2\",\"posts_page_id\":\"page-3\",\"posts_per_page\":10,\"comments_open\":false,\"currency\":\"RUB\",\"origin\":[{\"system\":\"wordpress\",\"id\":\"settings\"}],\"metadata\":{\"phone\":{\"value\":\"+7 000 000-00-00\"},\"analytics\":{\"value\":null},\"api_key\":{\"value\":\"k\",\"private\":true}}}",
+   "canonical": "{\"comments_open\":false,\"created_at\":\"2026-10-25T11:09:00Z\",\"currency\":\"RUB\",\"description\":\"Сайт студии\",\"front_page_id\":\"page-2\",\"icon_media_id\":\"media-19\",\"id\":\"site\",\"language\":\"ru-RU\",\"locale\":\"ru\",\"logo_media_id\":\"media-11\",\"metadata\":{\"analytics\":{\"value\":null},\"phone\":{\"value\":\"+7 000 000-00-00\"}},\"origin\":[{\"id\":\"settings\",\"system\":\"wordpress\"}],\"posts_page_id\":\"page-3\",\"posts_per_page\":10,\"timezone\":\"Europe/Moscow\",\"title\":\"Студия\",\"updated_at\":\"2026-10-25T11:09:00Z\",\"version\":5}",
+   "digest": "codex-settings/v1:sha256:a13a9b3e524941726121e66ef0b88e3edb5f9488890a00fcc3f7471ff44d55f1"
+  },
+  {
+   "name": "full with keys reversed at every level and whitespace: same digest as full",
+   "input_text": "{\n  \"metadata\": {\n    \"api_key\": {\n      \"private\": true,\n      \"value\": \"k\"\n    },\n    \"analytics\": {\n      \"value\": null\n    },\n    \"phone\": {\n      \"value\": \"+7 000 000-00-00\"\n    }\n  },\n  \"origin\": [\n    {\n      \"id\": \"settings\",\n      \"system\": \"wordpress\"\n    }\n  ],\n  \"currency\": \"RUB\",\n  \"comments_open\": false,\n  \"posts_per_page\": 10,\n  \"posts_page_id\": \"page-3\",\n  \"front_page_id\": \"page-2\",\n  \"icon_media_id\": \"media-19\",\n  \"logo_media_id\": \"media-11\",\n  \"timezone\": \"Europe/Moscow\",\n  \"description\": \"Сайт студии\",\n  \"updated_at\": \"2026-10-25T11:09:00Z\",\n  \"created_at\": \"2026-10-25T11:09:00Z\",\n  \"version\": 5,\n  \"language\": \"ru-RU\",\n  \"title\": \"Студия\",\n  \"locale\": \"ru\",\n  \"id\": \"site\"\n}\n",
+   "canonical": "{\"comments_open\":false,\"created_at\":\"2026-10-25T11:09:00Z\",\"currency\":\"RUB\",\"description\":\"Сайт студии\",\"front_page_id\":\"page-2\",\"icon_media_id\":\"media-19\",\"id\":\"site\",\"language\":\"ru-RU\",\"locale\":\"ru\",\"logo_media_id\":\"media-11\",\"metadata\":{\"analytics\":{\"value\":null},\"phone\":{\"value\":\"+7 000 000-00-00\"}},\"origin\":[{\"id\":\"settings\",\"system\":\"wordpress\"}],\"posts_page_id\":\"page-3\",\"posts_per_page\":10,\"timezone\":\"Europe/Moscow\",\"title\":\"Студия\",\"updated_at\":\"2026-10-25T11:09:00Z\",\"version\":5}",
+   "digest": "codex-settings/v1:sha256:a13a9b3e524941726121e66ef0b88e3edb5f9488890a00fcc3f7471ff44d55f1",
+   "same_digest_as": "full: every field, comments_open false kept, private metadata dropped"
+  },
+  {
+   "name": "dates with .000 and +03:00 offset normalize to Z: same digest as minimal",
+   "input_text": "{\"id\":\"site\",\"locale\":\"en\",\"title\":\"Studio\",\"language\":\"en-US\",\"version\":1,\"created_at\":\"2026-10-25T14:09:00+03:00\",\"updated_at\":\"2026-10-25T11:09:00.000Z\"}",
+   "canonical": "{\"created_at\":\"2026-10-25T11:09:00Z\",\"id\":\"site\",\"language\":\"en-US\",\"locale\":\"en\",\"title\":\"Studio\",\"updated_at\":\"2026-10-25T11:09:00Z\",\"version\":1}",
+   "digest": "codex-settings/v1:sha256:13db2f7f7a20069969584302eedcc440d99ee553b254ece4d9ca909eb5af2164",
+   "same_digest_as": "minimal: required fields only"
+  },
+  {
+   "name": "empty optional top-level fields are dropped: same digest as minimal",
+   "input_text": "{\"id\":\"site\",\"locale\":\"en\",\"title\":\"Studio\",\"language\":\"en-US\",\"version\":1,\"created_at\":\"2026-10-25T11:09:00Z\",\"updated_at\":\"2026-10-25T11:09:00Z\",\"description\":\"\",\"timezone\":\"\",\"origin\":[],\"metadata\":{}}",
+   "canonical": "{\"created_at\":\"2026-10-25T11:09:00Z\",\"id\":\"site\",\"language\":\"en-US\",\"locale\":\"en\",\"title\":\"Studio\",\"updated_at\":\"2026-10-25T11:09:00Z\",\"version\":1}",
+   "digest": "codex-settings/v1:sha256:13db2f7f7a20069969584302eedcc440d99ee553b254ece4d9ca909eb5af2164",
+   "same_digest_as": "minimal: required fields only"
+  },
+  {
+   "name": "error: integer literal above 2^53-1",
+   "input_text": "{\"id\":\"site\",\"locale\":\"en\",\"title\":\"Studio\",\"language\":\"en-US\",\"version\":1,\"created_at\":\"2026-10-25T11:09:00Z\",\"updated_at\":\"2026-10-25T11:09:00Z\",\"posts_per_page\":9007199254740993}",
+   "error": "canonical.unsafe_integer"
+  },
+  {
+   "name": "error: id not matching the id rule",
+   "input_text": "{\"id\":\"site/main\",\"locale\":\"en\",\"title\":\"Studio\",\"language\":\"en-US\",\"version\":1,\"created_at\":\"2026-10-25T11:09:00Z\",\"updated_at\":\"2026-10-25T11:09:00Z\"}",
+   "error": "canonical.invalid_id"
+  }
+ ]
+}

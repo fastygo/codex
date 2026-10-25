@@ -10,7 +10,7 @@ deterministic RFC 8785 canonicalization. A `Kind` is the equivalent of a
 or another kind without creating a parallel content model.
 
 The current contract is Codex data **v0.4.1**, aligned with `@ui8kit/contract`
-0.2.0 at commit `a70c243`. The Go module is not tagged until the contract
+0.2.0 at commit `d05ee75`. The Go module is not tagged until the contract
 owner confirms the official vectors.
 
 ## Ownership

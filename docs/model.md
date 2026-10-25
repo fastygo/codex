@@ -132,7 +132,7 @@ concerns.
 `codex-entry/v1` (RFC 8785 JCS). `CanonicalizeTerm` / `TermDigest` implement
 `codex-term/v1` (`count` is dropped). `CanonicalizeSettings` /
 `SettingsDigest` implement `codex-settings/v1`. Official vectors are vendored
-from `@ui8kit/contract` commit `a70c243`.
+from `@ui8kit/contract` commit `d05ee75`.
 
 `Manifest.Canonical` sorts set-like declarations while preserving field and
 option order for the v1 digest. `Manifest.Digest` is `codex-manifest/v1` over
