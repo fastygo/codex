@@ -2,22 +2,18 @@ package taxonomy_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/fastygo/codex/content"
 	"github.com/fastygo/codex/taxonomy"
 )
 
 func TestValidateHierarchy(t *testing.T) {
-	definition := taxonomy.Definition{
-		ID:              "topic",
-		Label:           content.LocalizedText{"en": "Topic"},
-		Mode:            taxonomy.ModeHierarchical,
-		AssignedToKinds: []content.Kind{"message"},
-		Version:         1,
-	}
+	now := testTime()
+	definition := validDefinition()
 	terms := []taxonomy.Term{
-		{ID: "go", TaxonomyID: "topic", Name: content.LocalizedText{"en": "Go"}, Slug: content.LocalizedText{"en": "go"}, Version: 1},
-		{ID: "wails", TaxonomyID: "topic", Name: content.LocalizedText{"en": "Wails"}, Slug: content.LocalizedText{"en": "wails"}, ParentID: "go", Version: 1},
+		validTerm("go", "Go", "go", "", now),
+		validTerm("wails", "Wails", "wails", "go", now),
 	}
 	if err := taxonomy.ValidateHierarchy(definition, terms); err != nil {
 		t.Fatalf("ValidateHierarchy() error = %v", err)
@@ -34,17 +30,16 @@ func TestValidateHierarchy(t *testing.T) {
 }
 
 func TestValidateHierarchyRejectsCycle(t *testing.T) {
+	now := testTime()
 	definition := taxonomy.Definition{
-		ID:              "topic",
-		Label:           content.LocalizedText{"en": "Topic"},
-		Mode:            taxonomy.ModeHierarchical,
-		AssignedToKinds: []content.Kind{content.KindPost},
-		Version:         1,
+		ID: "topic", Locale: "en", Label: "Topic",
+		Mode: taxonomy.ModeHierarchical, AssignedToKinds: []content.Kind{content.KindPost}, Version: 1,
 	}
 	terms := []taxonomy.Term{
-		{ID: "a", TaxonomyID: "topic", Name: content.LocalizedText{"en": "A"}, Slug: content.LocalizedText{"en": "a"}, ParentID: "b", Version: 1},
-		{ID: "b", TaxonomyID: "topic", Name: content.LocalizedText{"en": "B"}, Slug: content.LocalizedText{"en": "b"}, ParentID: "a", Version: 1},
+		validTerm("a", "A", "a", "b", now),
+		validTerm("b", "B", "b", "a", now),
 	}
+	terms[0].TaxonomyID, terms[1].TaxonomyID = "topic", "topic"
 	if err := taxonomy.ValidateHierarchy(definition, terms); err == nil {
 		t.Fatal("ValidateHierarchy() error = nil")
 	}
@@ -52,11 +47,8 @@ func TestValidateHierarchyRejectsCycle(t *testing.T) {
 
 func TestDefinitionCanonicalDoesNotMutate(t *testing.T) {
 	definition := taxonomy.Definition{
-		ID:              "topic",
-		Label:           content.LocalizedText{"en": "Topic"},
-		Mode:            taxonomy.ModeFlat,
-		AssignedToKinds: []content.Kind{"message", "conversation"},
-		Version:         1,
+		ID: "topic", Locale: "en", Label: "Topic",
+		Mode: taxonomy.ModeFlat, AssignedToKinds: []content.Kind{"message", "conversation"}, Version: 1,
 	}
 	canonical := definition.Canonical()
 	if canonical.AssignedToKinds[0] != "conversation" {
@@ -68,36 +60,24 @@ func TestDefinitionCanonicalDoesNotMutate(t *testing.T) {
 }
 
 func TestTermRejectsParentInFlatTaxonomy(t *testing.T) {
+	now := testTime()
 	definition := taxonomy.Definition{
-		ID:              "topic",
-		Label:           content.LocalizedText{"en": "Topic"},
-		Mode:            taxonomy.ModeFlat,
-		AssignedToKinds: []content.Kind{content.KindPost},
-		Version:         1,
+		ID: "topic", Locale: "en", Label: "Topic",
+		Mode: taxonomy.ModeFlat, AssignedToKinds: []content.Kind{content.KindPost}, Version: 1,
 	}
-	term := taxonomy.Term{
-		ID: "child", TaxonomyID: "topic",
-		Name: content.LocalizedText{"en": "Child"}, Slug: content.LocalizedText{"en": "child"},
-		ParentID: "parent", Version: 1,
-	}
+	term := validTerm("child", "Child", "child", "parent", now)
 	if err := term.Validate(definition); err == nil {
 		t.Fatal("Validate() error = nil")
 	}
 }
 
 func TestAssignmentRejectsDisallowedKind(t *testing.T) {
+	now := testTime()
 	definition := taxonomy.Definition{
-		ID:              "topic",
-		Label:           content.LocalizedText{"en": "Topic"},
-		Mode:            taxonomy.ModeFlat,
-		AssignedToKinds: []content.Kind{content.KindPost},
-		Version:         1,
+		ID: "topic", Locale: "en", Label: "Topic",
+		Mode: taxonomy.ModeFlat, AssignedToKinds: []content.Kind{content.KindPost}, Version: 1,
 	}
-	term := taxonomy.Term{
-		ID: "go", TaxonomyID: "topic",
-		Name: content.LocalizedText{"en": "Go"}, Slug: content.LocalizedText{"en": "go"},
-		Version: 1,
-	}
+	term := validTerm("go", "Go", "go", "", now)
 	assignment := taxonomy.Assignment{
 		ResourceKind: "message", ResourceID: "message-1",
 		TaxonomyID: "topic", TermID: "go",
@@ -109,12 +89,37 @@ func TestAssignmentRejectsDisallowedKind(t *testing.T) {
 
 func TestDefinitionRejectsEmptyLabel(t *testing.T) {
 	definition := taxonomy.Definition{
-		ID:              "topic",
-		Mode:            taxonomy.ModeFlat,
-		AssignedToKinds: []content.Kind{content.KindPost},
-		Version:         1,
+		ID: "topic", Locale: "en",
+		Mode: taxonomy.ModeFlat, AssignedToKinds: []content.Kind{content.KindPost}, Version: 1,
 	}
 	if err := definition.Validate(); err == nil {
 		t.Fatal("Validate() error = nil")
 	}
+}
+
+func TestTermRejectsInvalidID(t *testing.T) {
+	now := testTime()
+	term := validTerm("пост-1", "X", "x", "", now)
+	if err := term.Validate(validDefinition()); err == nil {
+		t.Fatal("Validate() error = nil")
+	}
+}
+
+func validDefinition() taxonomy.Definition {
+	return taxonomy.Definition{
+		ID: "topic", Locale: "en", Label: "Topic",
+		Mode: taxonomy.ModeHierarchical, AssignedToKinds: []content.Kind{"message"}, Version: 1,
+	}
+}
+
+func validTerm(id, name, slug string, parent taxonomy.ID, now time.Time) taxonomy.Term {
+	return taxonomy.Term{
+		ID: taxonomy.ID(id), Locale: "en", TaxonomyID: "topic",
+		Name: name, Slug: slug, ParentID: parent, Version: 1,
+		CreatedAt: now, UpdatedAt: now,
+	}
+}
+
+func testTime() time.Time {
+	return time.Date(2026, time.September, 9, 12, 0, 0, 0, time.UTC)
 }

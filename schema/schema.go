@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fastygo/codex/canonical"
 	"github.com/fastygo/codex/content"
 	"github.com/fastygo/codex/validation"
 )
@@ -70,13 +71,6 @@ func (resource Resource) Validate() error {
 		return validation.Wrap("schema.resource.record_invalid", "record", err)
 	}
 	for _, field := range resource.Record.Fields {
-		if isEntryChromeField(field.ID) && !field.Localized {
-			return validation.New(
-				"schema.field.chrome_not_localized",
-				string(field.ID),
-				"entry chrome field must be localized",
-			)
-		}
 		if err := ValidateFieldProfile(field); err != nil {
 			return err
 		}
@@ -123,15 +117,6 @@ func (resource Resource) Validate() error {
 	return validateRelationFields(resource, relations)
 }
 
-func isEntryChromeField(fieldID FieldID) bool {
-	switch fieldID {
-	case "slug", "title", "content", "excerpt":
-		return true
-	default:
-		return false
-	}
-}
-
 func (manifest Manifest) Resource(kind content.Kind) (Resource, bool) {
 	for _, resource := range manifest.Resources {
 		if resource.Record.ID == RecordTypeID(kind) {
@@ -172,6 +157,24 @@ func (manifest Manifest) Digest() (string, error) {
 	}
 	sum := sha256.Sum256(encoded)
 	return ManifestDigestPrefix + hex.EncodeToString(sum[:]), nil
+}
+
+// DigestV2 is the v0.4 identity: JCS of Canonical(), prefixed codex-manifest/v2:sha256:.
+// Digest() remains v1 (Go encoding/json of Canonical()) for compatibility.
+func (manifest Manifest) DigestV2() (string, error) {
+	if err := manifest.Validate(); err != nil {
+		return "", err
+	}
+	encoded, err := json.Marshal(manifest.Canonical())
+	if err != nil {
+		return "", err
+	}
+	text, err := canonical.CanonicalJSON(string(encoded))
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256([]byte(text))
+	return canonical.ManifestDigestV2Prefix + hex.EncodeToString(sum[:]), nil
 }
 
 func (manifest Manifest) Clone() Manifest {

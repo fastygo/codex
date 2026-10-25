@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schema.buildy.tw/taxonomy.schema.json",
+  "title": "Codex v0.4 taxonomy bundle (definition + terms)",
+  "description": "Codex v0.4.0 core (draft, docs/core-draft.md in github.com/ui8kit/contract). Structural check only; uniqueness of (id, locale) and slugs is checked by the @ui8kit/contract validator.",
+  "x-codex-version": "0.4.0",
+  "$ref": "#/$defs/TaxonomyBundle",
+  "$defs": {
+    "TaxonomyBundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definition",
+        "terms"
+      ],
+      "properties": {
+        "definition": {
+          "$ref": "#/$defs/Definition"
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "$ref": "https://schema.buildy.tw/term.schema.json"
+          }
+        }
+      }
+    },
+    "Definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "locale",
+        "label",
+        "mode",
+        "assigned_to_kinds",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$"
+        },
+        "locale": {
+          "type": "string",
+          "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+          "description": "BCP 47 tag, e.g. ru, en-US. The record key is (id, locale)."
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "mode": {
+          "enum": [
+            "flat",
+            "hierarchical"
+          ]
+        },
+        "assigned_to_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,62}$"
+          }
+        },
+        "public": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

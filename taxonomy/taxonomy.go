@@ -4,6 +4,7 @@ package taxonomy
 import (
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/fastygo/codex/content"
 	"github.com/fastygo/codex/validation"
@@ -18,22 +19,28 @@ const (
 )
 
 type Definition struct {
-	ID              string                `json:"id"`
-	Label           content.LocalizedText `json:"label"`
-	Mode            Mode                  `json:"mode"`
-	AssignedToKinds []content.Kind        `json:"assigned_to_kinds"`
-	Public          bool                  `json:"public,omitempty"`
-	Version         uint64                `json:"version"`
+	ID              string         `json:"id"`
+	Locale          string         `json:"locale"`
+	Label           string         `json:"label"`
+	Mode            Mode           `json:"mode"`
+	AssignedToKinds []content.Kind `json:"assigned_to_kinds"`
+	Public          bool           `json:"public,omitempty"`
+	Version         uint64         `json:"version"`
 }
 
 type Term struct {
-	ID          ID                    `json:"id"`
-	TaxonomyID  string                `json:"taxonomy_id"`
-	Name        content.LocalizedText `json:"name"`
-	Slug        content.LocalizedText `json:"slug"`
-	Description content.LocalizedText `json:"description,omitempty"`
-	ParentID    ID                    `json:"parent_id,omitempty"`
-	Version     uint64                `json:"version"`
+	ID          ID                               `json:"id"`
+	Locale      string                           `json:"locale"`
+	TaxonomyID  string                           `json:"taxonomy_id"`
+	Name        string                           `json:"name"`
+	Slug        string                           `json:"slug"`
+	Description string                           `json:"description,omitempty"`
+	ParentID    ID                               `json:"parent_id,omitempty"`
+	Origin      []content.Origin                 `json:"origin,omitempty"`
+	Metadata    map[string]content.MetadataValue `json:"metadata,omitempty"`
+	Version     uint64                           `json:"version"`
+	CreatedAt   time.Time                        `json:"created_at"`
+	UpdatedAt   time.Time                        `json:"updated_at"`
 }
 
 type Assignment struct {
@@ -47,8 +54,11 @@ func (definition Definition) Validate() error {
 	if !content.ValidIdentifier(definition.ID) {
 		return validation.New("taxonomy.definition.id_invalid", "id", "taxonomy id is invalid")
 	}
+	if !content.ValidLocale(definition.Locale) {
+		return validation.New(validation.CoreLocaleInvalid, "locale", "locale must be a BCP 47 tag like \"ru\" or \"en-US\"")
+	}
 	if definition.Version == 0 {
-		return validation.New("taxonomy.definition.version_required", "version", "taxonomy version is required")
+		return validation.New(validation.CoreVersionRequired, "version", "taxonomy version is required")
 	}
 	if definition.Mode != ModeFlat && definition.Mode != ModeHierarchical {
 		return validation.New("taxonomy.definition.mode_invalid", "mode", "taxonomy mode is invalid")
@@ -56,7 +66,7 @@ func (definition Definition) Validate() error {
 	if len(definition.AssignedToKinds) == 0 {
 		return validation.New("taxonomy.definition.kinds_required", "assigned_to_kinds", "taxonomy requires at least one resource kind")
 	}
-	if !hasLocalizedValue(definition.Label) {
+	if strings.TrimSpace(definition.Label) == "" {
 		return validation.New("taxonomy.definition.label_required", "label", "taxonomy label is required")
 	}
 	seen := make(map[content.Kind]struct{}, len(definition.AssignedToKinds))
@@ -69,30 +79,35 @@ func (definition Definition) Validate() error {
 		}
 		seen[kind] = struct{}{}
 	}
-	return content.ValidateLocalizedText(definition.Label)
+	return nil
 }
 
 func (term Term) Validate(definition Definition) error {
 	switch {
 	case strings.TrimSpace(string(term.ID)) == "":
-		return validation.New("taxonomy.term.id_required", "id", "term id is required")
+		return validation.New(validation.CoreIDRequired, "id", "term id is required")
+	case !content.ValidRecordID(string(term.ID)):
+		return validation.New(validation.CoreIDInvalid, "id", "id must be opaque ASCII matching "+content.RecordIDPattern)
+	case !content.ValidLocale(term.Locale):
+		return validation.New(validation.CoreLocaleInvalid, "locale", "locale must be a BCP 47 tag like \"ru\" or \"en-US\"")
 	case term.TaxonomyID != definition.ID:
 		return validation.New("taxonomy.term.definition_mismatch", "taxonomy_id", "term taxonomy does not match definition")
+	case !content.ValidIdentifier(term.TaxonomyID):
+		return validation.New(validation.CoreTermTaxonomyInvalid, "taxonomy_id", "taxonomy_id is invalid")
 	case term.Version == 0:
-		return validation.New("taxonomy.term.version_required", "version", "term version is required")
+		return validation.New(validation.CoreVersionRequired, "version", "term version is required")
+	case term.CreatedAt.IsZero() || term.UpdatedAt.IsZero():
+		return validation.New(validation.CoreTimestampsRequired, "created_at", "created_at and updated_at must be RFC 3339")
+	case term.UpdatedAt.Before(term.CreatedAt):
+		return validation.New(validation.CoreTimestampsOrder, "updated_at", "updated_at precedes created_at")
 	case term.ParentID == term.ID:
-		return validation.New("taxonomy.term.parent_self", "parent_id", "term cannot be its own parent")
+		return validation.New(validation.CoreTermParentSelf, "parent_id", "term cannot be its own parent")
 	case definition.Mode == ModeFlat && term.ParentID != "":
 		return validation.New("taxonomy.term.parent_flat", "parent_id", "flat taxonomy cannot contain parent terms")
-	case !hasLocalizedValue(term.Name):
-		return validation.New("taxonomy.term.name_required", "name", "term name is required")
-	case !hasLocalizedValue(term.Slug):
-		return validation.New("taxonomy.term.slug_required", "slug", "term slug is required")
-	}
-	for _, values := range []content.LocalizedText{term.Name, term.Slug, term.Description} {
-		if err := content.ValidateLocalizedText(values); err != nil {
-			return err
-		}
+	case strings.TrimSpace(term.Name) == "":
+		return validation.New(validation.CoreTermNameRequired, "name", "term name is required")
+	case strings.TrimSpace(term.Slug) == "":
+		return validation.New(validation.CoreTermSlugRequired, "slug", "term slug is required")
 	}
 	return nil
 }
@@ -127,61 +142,63 @@ func (definition Definition) Allows(kind content.Kind) bool {
 // Canonical returns a clone with sorted kind assignments.
 func (definition Definition) Canonical() Definition {
 	canonical := definition
-	canonical.Label = cloneLocalizedText(definition.Label)
 	canonical.AssignedToKinds = append([]content.Kind(nil), definition.AssignedToKinds...)
 	slices.Sort(canonical.AssignedToKinds)
 	return canonical
 }
 
-// ValidateHierarchy rejects duplicate terms, missing parents, and cycles.
+func (term Term) Clone() Term {
+	cloned := term
+	cloned.Origin = append([]content.Origin(nil), term.Origin...)
+	if term.Metadata != nil {
+		cloned.Metadata = make(map[string]content.MetadataValue, len(term.Metadata))
+		for key, value := range term.Metadata {
+			cloned.Metadata[key] = value
+		}
+	}
+	return cloned
+}
+
+// ValidateHierarchy rejects duplicate (id, locale) pairs, missing parents, and cycles.
 func ValidateHierarchy(definition Definition, terms []Term) error {
 	if err := definition.Validate(); err != nil {
 		return err
 	}
+	byKey := make(map[string]Term, len(terms))
 	byID := make(map[ID]Term, len(terms))
 	for _, term := range terms {
 		if err := term.Validate(definition); err != nil {
 			return err
 		}
-		if _, exists := byID[term.ID]; exists {
-			return validation.New("taxonomy.hierarchy.term_duplicated", string(term.ID), "term id is duplicated")
+		key := string(term.ID) + "\x00" + term.Locale
+		if _, exists := byKey[key]; exists {
+			return validation.New(validation.CoreTermKeyDuplicated, string(term.ID), "term key (id, locale) is duplicated")
 		}
+		byKey[key] = term
 		byID[term.ID] = term
 	}
 	for _, term := range terms {
-		visited := map[ID]struct{}{term.ID: {}}
+		if term.ParentID == "" {
+			continue
+		}
+		if _, exists := byID[term.ParentID]; !exists {
+			return validation.New(validation.CoreTermParentMissing, string(term.ParentID), "taxonomy parent does not exist")
+		}
+		visited := map[string]struct{}{string(term.ID) + "\x00" + term.Locale: {}}
 		parentID := term.ParentID
+		locale := term.Locale
 		for parentID != "" {
-			if _, cycle := visited[parentID]; cycle {
-				return validation.New("taxonomy.hierarchy.cycle", string(parentID), "taxonomy hierarchy contains a cycle")
+			parentKey := string(parentID) + "\x00" + locale
+			if _, cycle := visited[parentKey]; cycle {
+				return validation.New(validation.CoreTermParentCycle, string(parentID), "taxonomy hierarchy contains a cycle")
 			}
-			visited[parentID] = struct{}{}
-			parent, exists := byID[parentID]
+			parent, exists := byKey[parentKey]
 			if !exists {
-				return validation.New("taxonomy.hierarchy.parent_missing", string(parentID), "taxonomy parent does not exist")
+				break
 			}
+			visited[parentKey] = struct{}{}
 			parentID = parent.ParentID
 		}
 	}
 	return nil
-}
-
-func hasLocalizedValue(values content.LocalizedText) bool {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return true
-		}
-	}
-	return false
-}
-
-func cloneLocalizedText(source content.LocalizedText) content.LocalizedText {
-	if source == nil {
-		return nil
-	}
-	target := make(content.LocalizedText, len(source))
-	for key, value := range source {
-		target[key] = value
-	}
-	return target
 }

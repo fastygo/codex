@@ -1,30 +1,15 @@
 {
   "id": "article-invalid-location",
+  "locale": "en",
   "kind": "article",
   "status": "published",
   "visibility": "public",
-  "slug": {
-    "en": "invalid-location"
-  },
-  "title": {
-    "en": "Invalid location"
-  },
-  "content": {
-    "en": "Content"
-  },
+  "slug": "invalid-location",
+  "title": "Invalid location",
+  "content": "Content",
   "metadata": {
-    "source_id": {
-      "value": "fixture-invalid"
-    }
-  },
-  "locales": {
-    "en": {
-      "data": {
-        "content": "Content",
-        "source_id": "fixture-invalid"
-      },
-      "status": "published",
-      "updated_at": "2026-09-09T12:00:00Z"
+    "source_sequence": {
+      "value": 1
     }
   },
   "version": 1,
