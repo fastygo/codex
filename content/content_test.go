@@ -334,6 +334,25 @@ func TestCommentMenuDictionarySettings(t *testing.T) {
 	}
 }
 
+func TestSiteLocale(t *testing.T) {
+	if got := content.SiteLocale(nil); got != content.DefaultLocale {
+		t.Fatalf("no settings = %q, want %q", got, content.DefaultLocale)
+	}
+	now := testTime()
+	settings := []content.Settings{
+		{ID: "other", Locale: "de", Title: "X", Language: "de", Version: 1, CreatedAt: now, UpdatedAt: now},
+		{ID: "site", Locale: "ru", Title: "S", Language: "ru", Version: 1, CreatedAt: now, UpdatedAt: now},
+		{ID: "site", Locale: "en", Title: "S", Language: "en-US", Version: 1, CreatedAt: now, UpdatedAt: now},
+	}
+	if got := content.SiteLocale(settings); got != "en-US" {
+		t.Fatalf("SiteLocale() = %q, want en-US (site, locale-sorted)", got)
+	}
+	var typed content.SettingsV04 = settings[0]
+	if typed.Language != "de" {
+		t.Fatalf("SettingsV04 alias = %#v", typed)
+	}
+}
+
 func validEntry(now time.Time) content.Entry {
 	published := now
 	return content.Entry{

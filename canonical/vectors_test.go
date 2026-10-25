@@ -22,18 +22,23 @@ type vectorCase struct {
 	Error     string `json:"error"`
 }
 
-func loadVectors(t *testing.T) vectorFile {
+func loadVectorFile(t *testing.T, name string) vectorFile {
 	t.Helper()
-	path := filepath.Join("..", "conformance", "contract", "fixtures", "vectors", "canonical.json")
+	path := filepath.Join("..", "conformance", "contract", "fixtures", "vectors", name)
 	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read vectors: %v", err)
+		t.Fatalf("read vectors %s: %v", name, err)
 	}
 	var file vectorFile
 	if err := json.Unmarshal(data, &file); err != nil {
-		t.Fatalf("decode vectors: %v", err)
+		t.Fatalf("decode vectors %s: %v", name, err)
 	}
 	return file
+}
+
+func loadVectors(t *testing.T) vectorFile {
+	t.Helper()
+	return loadVectorFile(t, "canonical.json")
 }
 
 func TestOfficialCanonicalVectors(t *testing.T) {
@@ -88,6 +93,106 @@ func TestOfficialCanonicalVectors(t *testing.T) {
 	}
 	_ = ok
 	_ = fail
+}
+
+func TestOfficialManifestVectors(t *testing.T) {
+	file := loadVectorFile(t, "manifest.json")
+	if file.Profile != canonical.ManifestProfile {
+		t.Fatalf("profile = %q, want %q", file.Profile, canonical.ManifestProfile)
+	}
+	if len(file.Cases) < 6 {
+		t.Fatalf("case count = %d, want at least 6", len(file.Cases))
+	}
+	for _, c := range file.Cases {
+		c := c
+		t.Run(c.Name, func(t *testing.T) {
+			if c.Error != "" {
+				_, err := canonical.CanonicalizeManifest(c.InputText)
+				if err == nil {
+					t.Fatalf("CanonicalizeManifest() error = nil, want %s", c.Error)
+				}
+				if got := canonical.Code(err); got != c.Error {
+					t.Fatalf("error code = %q, want %q (err = %v)", got, c.Error, err)
+				}
+				if _, err := canonical.ManifestDigest(c.InputText); err == nil {
+					t.Fatal("ManifestDigest() error = nil")
+				}
+				return
+			}
+			out, err := canonical.CanonicalizeManifest(c.InputText)
+			if err != nil {
+				t.Fatalf("CanonicalizeManifest() error = %v", err)
+			}
+			if out != c.Canonical {
+				t.Fatalf("canonical mismatch\n got %s\nwant %s", out, c.Canonical)
+			}
+			digest, err := canonical.ManifestDigest(c.InputText)
+			if err != nil {
+				t.Fatalf("ManifestDigest() error = %v", err)
+			}
+			if digest != c.Digest {
+				t.Fatalf("digest = %q, want %q", digest, c.Digest)
+			}
+			again, err := canonical.CanonicalizeManifest(out)
+			if err != nil {
+				t.Fatalf("idempotent CanonicalizeManifest() error = %v", err)
+			}
+			if again != out {
+				t.Fatal("canonical form is not idempotent")
+			}
+		})
+	}
+}
+
+func TestOfficialTermSettingsVectorsPending(t *testing.T) {
+	for _, name := range []string{"term.json", "settings.json"} {
+		path := filepath.Join("..", "conformance", "contract", "fixtures", "vectors", name)
+		if _, err := os.Stat(path); err != nil {
+			t.Logf("TODO: %s is not in the contract pin yet", name)
+			continue
+		}
+		file := loadVectorFile(t, name)
+		canonicalize := canonical.CanonicalizeTerm
+		digestFn := canonical.TermDigest
+		profile := canonical.TermProfile
+		if name == "settings.json" {
+			canonicalize = canonical.CanonicalizeSettings
+			digestFn = canonical.SettingsDigest
+			profile = canonical.SettingsProfile
+		}
+		if file.Profile != profile {
+			t.Fatalf("%s profile = %q, want %q", name, file.Profile, profile)
+		}
+		for _, c := range file.Cases {
+			c := c
+			t.Run(name+"/"+c.Name, func(t *testing.T) {
+				if c.Error != "" {
+					_, err := canonicalize(c.InputText)
+					if err == nil {
+						t.Fatalf("error = nil, want %s", c.Error)
+					}
+					if got := canonical.Code(err); got != c.Error {
+						t.Fatalf("error code = %q, want %q", got, c.Error)
+					}
+					return
+				}
+				out, err := canonicalize(c.InputText)
+				if err != nil {
+					t.Fatalf("canonicalize error = %v", err)
+				}
+				if out != c.Canonical {
+					t.Fatalf("canonical mismatch\n got %s\nwant %s", out, c.Canonical)
+				}
+				digest, err := digestFn(c.InputText)
+				if err != nil {
+					t.Fatalf("digest error = %v", err)
+				}
+				if digest != c.Digest {
+					t.Fatalf("digest = %q, want %q", digest, c.Digest)
+				}
+			})
+		}
+	}
 }
 
 func TestESNumberFormat(t *testing.T) {

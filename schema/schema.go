@@ -159,22 +159,22 @@ func (manifest Manifest) Digest() (string, error) {
 	return ManifestDigestPrefix + hex.EncodeToString(sum[:]), nil
 }
 
-// DigestV2 is the v0.4 identity: JCS of Canonical(), prefixed codex-manifest/v2:sha256:.
-// Digest() remains v1 (Go encoding/json of Canonical()) for compatibility.
+// DigestV2 is the v0.4 identity of this in-memory value: codex-manifest/v2
+// over JCS of the unsourced-order projection. It does not call Canonical();
+// array order (resources, taxonomies, capabilities, relations, allowed_targets)
+// is significant. Digest() remains v1 (Go encoding/json of Canonical()).
+//
+// Nested empty JSON values such as "policy":{} are recovered only from the
+// original JSON text. The wire digest of a document is canonical.ManifestDigest.
 func (manifest Manifest) DigestV2() (string, error) {
 	if err := manifest.Validate(); err != nil {
 		return "", err
 	}
-	encoded, err := json.Marshal(manifest.Canonical())
+	encoded, err := json.Marshal(manifest)
 	if err != nil {
 		return "", err
 	}
-	text, err := canonical.CanonicalJSON(string(encoded))
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256([]byte(text))
-	return canonical.ManifestDigestV2Prefix + hex.EncodeToString(sum[:]), nil
+	return canonical.ManifestDigest(string(encoded))
 }
 
 func (manifest Manifest) Clone() Manifest {

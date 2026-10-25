@@ -1,6 +1,7 @@
-// Package canonical implements the Codex v0.4 entry canonical form
-// (profile codex-entry/v1, draft v0.4). It is a Go port of
-// @ui8kit/contract src/canonical.ts at commit 8299fee.
+// Package canonical implements Codex v0.4 canonical forms (RFC 8785 JCS).
+// Profiles: codex-entry/v1, codex-term/v1, codex-settings/v1, and
+// codex-manifest/v2. It is a Go port of @ui8kit/contract src/canonical.ts
+// (entry) plus schema-driven projections for term, settings, and manifest.
 //
 // Serialization is RFC 8785 (JCS). encoding/json is not used for output:
 // it HTML-escapes <>& and \u-escapes U+2028/U+2029, which JCS forbids.
@@ -11,8 +12,13 @@ import "fmt"
 const (
 	EntryProfile           = "codex-entry/v1"
 	EntryDigestPrefix      = EntryProfile + ":sha256:"
+	TermProfile            = "codex-term/v1"
+	TermDigestPrefix       = TermProfile + ":sha256:"
+	SettingsProfile        = "codex-settings/v1"
+	SettingsDigestPrefix   = SettingsProfile + ":sha256:"
+	ManifestProfile        = "codex-manifest/v2"
 	ManifestDigestV1Prefix = "codex-manifest/v1:sha256:"
-	ManifestDigestV2Prefix = "codex-manifest/v2:sha256:"
+	ManifestDigestV2Prefix = ManifestProfile + ":sha256:"
 )
 
 const (

@@ -1,6 +1,7 @@
 package content
 
 import (
+	"regexp"
 	"strings"
 	"time"
 
@@ -131,6 +132,10 @@ func (dictionary Dictionary) Validate() error {
 	return nil
 }
 
+// SettingsV04 is the contract name for Settings (@ui8kit/contract SettingsV04).
+// It is a separate record type, not an entry of kind=setting. The key is (id, locale).
+type SettingsV04 = Settings
+
 // Settings is one site-settings record per (id, locale). Currency is the default
 // ISO 4217 code for money fields that do not carry their own currency.
 type Settings struct {
@@ -170,8 +175,15 @@ func (settings Settings) Validate() error {
 		return validation.New(validation.CoreVersionRequired, "version", "version must be an integer >= 1")
 	case settings.CreatedAt.IsZero() || settings.UpdatedAt.IsZero():
 		return validation.New(validation.CoreTimestampsRequired, "created_at", "created_at and updated_at must be RFC 3339")
+	case settings.Timezone != "" && !ValidTimezone(settings.Timezone):
+		return validation.New(validation.CoreSettingsTimezoneInvalid, "timezone", "timezone must be an IANA name like Europe/Moscow")
+	case settings.PostsPerPage != nil && *settings.PostsPerPage < 1:
+		return validation.New(validation.CoreSettingsTypeInvalid, "posts_per_page", "posts_per_page must be an integer >= 1")
 	case settings.Currency != "" && !ValidCurrency(settings.Currency):
 		return validation.New(validation.CoreSettingsCurrencyInvalid, "currency", "currency must be an ISO 4217 code like USD")
+	}
+	if err := validateOrigin(settings.Origin); err != nil {
+		return err
 	}
 	return validateMetadata(settings.Metadata)
 }
@@ -187,4 +199,11 @@ func ValidCurrency(value string) bool {
 		}
 	}
 	return true
+}
+
+var timezonePattern = regexp.MustCompile(`^[A-Za-z_]+(/[A-Za-z0-9_+-]+)*$|^UTC$`)
+
+// ValidTimezone reports whether value is an IANA time zone name or UTC.
+func ValidTimezone(value string) bool {
+	return timezonePattern.MatchString(value)
 }

@@ -129,12 +129,15 @@ concerns.
 ## Canonical identity and validation
 
 `canonical.Canonicalize` / `canonical.Digest` implement profile
-`codex-entry/v1` (RFC 8785 JCS). Official vectors are vendored from
-`@ui8kit/contract` commit `8299fee`.
+`codex-entry/v1` (RFC 8785 JCS). `CanonicalizeTerm` / `TermDigest` implement
+`codex-term/v1` (`count` is dropped). `CanonicalizeSettings` /
+`SettingsDigest` implement `codex-settings/v1`. Official vectors are vendored
+from `@ui8kit/contract` commit `a70c243`.
 
 `Manifest.Canonical` sorts set-like declarations while preserving field and
-option order. `Manifest.Digest` is `codex-manifest/v1` over Go
-`encoding/json`. `Manifest.DigestV2` is `codex-manifest/v2` over JCS.
+option order for the v1 digest. `Manifest.Digest` is `codex-manifest/v1` over
+Go `encoding/json`. `canonical.ManifestDigest` / `Manifest.DigestV2` are
+`codex-manifest/v2` over JCS of the unsorted full manifest.
 
 Validation failures expose stable `validation.Error` codes and paths.
 Human-readable messages are diagnostic and are not compatibility keys.
@@ -143,6 +146,6 @@ Human-readable messages are diagnostic and are not compatibility keys.
 
 The `conformance` package embeds stable Entry, resource-aware Entry, manifest,
 taxonomy, and revision fixtures. `conformance/contract` pins the TypeScript
-schemas and the 24 official canonical vectors. Adapters should run these
-fixtures without local module replacements before claiming Codex
-compatibility.
+schemas and the official `codex-entry/v1` and `codex-manifest/v2` vectors.
+Adapters should run these fixtures without local module replacements before
+claiming Codex compatibility.

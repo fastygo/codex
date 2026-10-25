@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fastygo/codex/canonical"
 	"github.com/fastygo/codex/conformance"
 	"github.com/fastygo/codex/content"
 	"github.com/fastygo/codex/revision"
@@ -201,10 +202,41 @@ func TestContractPin(t *testing.T) {
 		t.Fatalf("contract pin: %v", err)
 	}
 	text := string(data)
-	if !strings.Contains(text, "8299fee") || !strings.Contains(text, "867eb06") {
+	if !strings.Contains(text, "a70c243") {
 		t.Fatalf("unexpected contract pin:\n%s", text)
 	}
 	if _, err := os.Stat("contract/fixtures/vectors/canonical.json"); err != nil {
-		t.Fatalf("official vectors: %v", err)
+		t.Fatalf("official entry vectors: %v", err)
+	}
+	if _, err := os.Stat("contract/fixtures/vectors/manifest.json"); err != nil {
+		t.Fatalf("official manifest vectors: %v", err)
+	}
+}
+
+func TestExampleManifestDigestV2(t *testing.T) {
+	data, err := conformance.ReadFixture("example.manifest.json")
+	if err != nil {
+		t.Fatalf("ReadFixture() error = %v", err)
+	}
+	digest, err := canonical.ManifestDigest(string(data))
+	if err != nil {
+		t.Fatalf("ManifestDigest() error = %v", err)
+	}
+	want := "codex-manifest/v2:sha256:80b481a371d8c5d700b7c7acbbe70aff13e9d70af48a94147b7c58881cf3dd3a"
+	if digest != want {
+		t.Fatalf("example.manifest.json v2 digest =\n %s\nwant\n %s", digest, want)
+	}
+	v1, err := func() (string, error) {
+		manifest, err := conformance.ManifestFixture("example.manifest.json")
+		if err != nil {
+			return "", err
+		}
+		return manifest.Digest()
+	}()
+	if err != nil {
+		t.Fatalf("v1 Digest() error = %v", err)
+	}
+	if v1 == digest {
+		t.Fatal("v1 and v2 example digests should differ")
 	}
 }

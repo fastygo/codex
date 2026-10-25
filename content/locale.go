@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// DefaultLocale is the site default when there are no settings records.
 const DefaultLocale = "en"
 
 var localePattern = regexp.MustCompile(`^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$`)
@@ -22,8 +23,37 @@ func ValidLocale(locale string) bool {
 	return localePattern.MatchString(locale)
 }
 
+// SiteLocale returns the site default locale from settings.language.
+// When there are no settings, it returns DefaultLocale ("en").
+// Records with id "site" are preferred; otherwise the lexicographically
+// first (id, locale) with a non-empty language wins.
+func SiteLocale(settings []Settings) string {
+	if len(settings) == 0 {
+		return DefaultLocale
+	}
+	chosen := append([]Settings(nil), settings...)
+	slices.SortFunc(chosen, func(a, b Settings) int {
+		if c := strings.Compare(string(a.ID), string(b.ID)); c != 0 {
+			return c
+		}
+		return strings.Compare(a.Locale, b.Locale)
+	})
+	for _, s := range chosen {
+		if string(s.ID) == "site" && s.Language != "" {
+			return s.Language
+		}
+	}
+	for _, s := range chosen {
+		if s.Language != "" {
+			return s.Language
+		}
+	}
+	return DefaultLocale
+}
+
 // Pick returns the entry with the given id and requested locale, falling back
 // to fallback, then to the lexicographically first locale for that id.
+// Pass SiteLocale(settings) as fallback for the site default language.
 func Pick(entries []Entry, id ID, requested, fallback string) (Entry, LocaleResolution, bool) {
 	if requested == "" {
 		requested = DefaultLocale

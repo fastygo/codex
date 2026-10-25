@@ -24,9 +24,10 @@ validation. The record key is `(id, locale)`.
 
 ### `canonical`
 
-Implements profile `codex-entry/v1`: a strict JSON parser and RFC 8785 JCS
-serializer ported from `@ui8kit/contract` `src/canonical.ts`. Go
-`encoding/json` is not used for canonical output.
+Implements RFC 8785 JCS (`canonical.JCS`) and the profiles `codex-entry/v1`,
+`codex-term/v1`, `codex-settings/v1`, and `codex-manifest/v2`, ported from
+`@ui8kit/contract` `src/canonical.ts`. Go `encoding/json` is not used for
+canonical output.
 
 ### `schema`
 
@@ -41,7 +42,8 @@ presentation semantics.
 
 `Field.Localized` means translatable. Declared non-chrome fields live in
 `Entry.Metadata`. Chrome is always localized. `Resource.PublicProjection`
-applies field sensitivity. `Manifest.DigestV2` hashes JCS of `Canonical()`.
+applies field sensitivity. `Manifest.DigestV2` hashes JCS of the unsorted
+full manifest; `Manifest.Digest` remains v1 of `Canonical()`.
 
 ### `validate`
 
@@ -67,7 +69,7 @@ Converts v0.3 JSON documents to v0.4 records for a requested locale.
 Ships public fixtures and assertions for downstream adapters. Conformance
 tests verify JSON round trips, canonical manifests, lifecycle validation,
 locale pick, taxonomy hierarchy, revisions, and the official
-`codex-entry/v1` vectors pinned from `@ui8kit/contract`.
+`codex-entry/v1` and `codex-manifest/v2` vectors pinned from `@ui8kit/contract`.
 
 ## JSON boundary
 
@@ -75,10 +77,10 @@ JSON tags are part of the public compatibility contract but do not imply REST.
 Adapters may store or transport the same shapes. Unknown product fields belong
 inside metadata and must survive compatible round trips.
 
-Entry canonicalization is RFC 8785 JCS (`codex-entry/v1`). Manifest v1
-canonicalization remains Go `encoding/json` of `Canonical()`; v2 is JCS.
-Neither digest is a cryptographic signature format. Consumers sign a specified
-serialized form if needed.
+Entry, term, and settings canonicalization is RFC 8785 JCS. Manifest v1
+canonicalization remains Go `encoding/json` of `Canonical()`; v2 is JCS of
+the unsorted full manifest. Neither digest is a cryptographic signature
+format. Consumers sign a specified serialized form if needed.
 
 ## Product and delivery boundary
 
@@ -93,10 +95,10 @@ They are deliberately absent from `schema.Resource`.
 ## Contract identity
 
 `Manifest.Digest` hashes canonical JSON with a versioned
-`codex-manifest/v1:sha256:` prefix. `Manifest.DigestV2` uses JCS and
-`codex-manifest/v2:sha256:`. Validation errors expose machine-readable codes
-and paths through the `validation` package. Human messages may improve without
-changing the contract.
+`codex-manifest/v1:sha256:` prefix. `canonical.ManifestDigest` /
+`Manifest.DigestV2` use JCS and `codex-manifest/v2:sha256:` without sorting
+arrays. Validation errors expose machine-readable codes and paths through the
+`validation` package. Human messages may improve without changing the contract.
 
 ## Migration boundary
 

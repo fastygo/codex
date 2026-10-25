@@ -9,10 +9,23 @@ import (
 	"unicode/utf16"
 )
 
-// Format serializes v as RFC 8785 JSON Canonicalization Scheme.
+// JCS serializes v as RFC 8785 JSON Canonicalization Scheme.
 // Numbers follow ECMAScript Number.prototype.toString; -0 becomes 0.
-func Format(v any) string {
+//
+// HTTP servers must use JCS (or CanonicalJSON) for envelopes, discovery
+// documents, and error bodies. encoding/json HTML-escapes <>& and
+// \u-escapes U+2028/U+2029, which JCS forbids.
+//
+// v must be a JSON-native value (nil, bool, float64, json.Number, string,
+// []any, map[string]any) or a small set of integer types. Structs are not
+// walked; build maps from the contract schemas.
+func JCS(v any) string {
 	return jcs(v)
+}
+
+// Format is JCS. Kept for callers that landed with v0.4.0.
+func Format(v any) string {
+	return JCS(v)
 }
 
 // CanonicalJSON parses any JSON text with the strict parser and returns RFC 8785 JCS.
@@ -21,7 +34,7 @@ func CanonicalJSON(inputText string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return jcs(v), nil
+	return JCS(v), nil
 }
 
 func jcs(v any) string {

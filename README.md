@@ -9,9 +9,9 @@ deterministic RFC 8785 canonicalization. A `Kind` is the equivalent of a
 `post_type`: products can declare `post`, `page`, `message`, `conversation`,
 or another kind without creating a parallel content model.
 
-The current contract is Codex data **v0.4**, aligned with `@ui8kit/contract`
-0.2.0 at commit `8299fee`. The Go module is not tagged `v0.4.0` until the
-contract owner confirms the official vectors.
+The current contract is Codex data **v0.4.1**, aligned with `@ui8kit/contract`
+0.2.0 at commit `a70c243`. The Go module is not tagged until the contract
+owner confirms the official vectors.
 
 ## Ownership
 
@@ -32,7 +32,7 @@ names. Those stay in GoBackend and product repositories.
 
 ```text
 content/      Entry, lifecycle, visibility, locale, records
-canonical/    RFC 8785 JCS, codex-entry/v1 Canonicalize and Digest
+canonical/    RFC 8785 JCS; entry/term/settings/manifest digests
 schema/       Manifest, fields, relations, entry validation
 validate/     Collection validator (ISSUE_CODES_V04 + Q7)
 taxonomy/     Definitions, terms, assignments, hierarchy validation
@@ -84,8 +84,9 @@ See [`docs/model.md`](docs/model.md) for the complete model and
 [`.project/README.md`](.project/README.md) for the contract and decisions.
 Existing consumers follow the
 [`v0.2.0`](docs/migrations/v0.2.0.md),
-[`v0.3.0`](docs/migrations/v0.3.0.md), and
-[`v0.4.0`](docs/migrations/v0.4.0.md) migration notes.
+[`v0.3.0`](docs/migrations/v0.3.0.md),
+[`v0.4.0`](docs/migrations/v0.4.0.md), and
+[`v0.4.1`](docs/migrations/v0.4.1.md) migration notes.
 
 ## Verify
 

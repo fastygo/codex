@@ -183,6 +183,36 @@ func TestManifestDigestV2UsesJCS(t *testing.T) {
 	}
 }
 
+func TestManifestDigestV2KeepsResourceOrder(t *testing.T) {
+	forward := productManifest()
+	reversed := productManifest()
+	reversed.Resources[0], reversed.Resources[1] = reversed.Resources[1], reversed.Resources[0]
+
+	v1a, err := forward.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	v1b, err := reversed.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v1a != v1b {
+		t.Fatal("Digest() v1 must stay order-insensitive via Canonical()")
+	}
+
+	v2a, err := forward.DigestV2()
+	if err != nil {
+		t.Fatal(err)
+	}
+	v2b, err := reversed.DigestV2()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v2a == v2b {
+		t.Fatal("DigestV2 must keep source resource order")
+	}
+}
+
 func TestFieldProfileRules(t *testing.T) {
 	valid := schema.Field{
 		ID: "count", Label: "Count", Type: schema.FieldNumber,

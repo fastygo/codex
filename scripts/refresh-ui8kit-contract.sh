@@ -3,7 +3,7 @@
 # Usage: scripts/refresh-ui8kit-contract.sh [commit]
 set -euo pipefail
 
-COMMIT="${1:-8299fee}"
+COMMIT="${1:-a70c243}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$ROOT/conformance/contract"
 TMP="$(mktemp -d)"
@@ -20,9 +20,11 @@ git -C "$TMP/contract" checkout --detach "$COMMIT"
 
 mkdir -p "$DEST/schemas" "$DEST/fixtures/vectors"
 cp "$TMP/contract"/schemas/*.json "$DEST/schemas/"
-if [[ -f "$TMP/contract/fixtures/vectors/canonical.json" ]]; then
-  cp "$TMP/contract/fixtures/vectors/canonical.json" "$DEST/fixtures/vectors/canonical.json"
-fi
+for f in canonical.json manifest.json term.json settings.json; do
+  if [[ -f "$TMP/contract/fixtures/vectors/$f" ]]; then
+    cp "$TMP/contract/fixtures/vectors/$f" "$DEST/fixtures/vectors/$f"
+  fi
+done
 
 PARENT="$(git -C "$TMP/contract" rev-parse "${COMMIT}^" 2>/dev/null || true)"
 VERSION="$(python3 - <<'PY' 2>/dev/null || true
@@ -41,7 +43,7 @@ version: ${VERSION}
 commit: ${COMMIT}
 parent: ${PARENT}
 source: https://github.com/ui8kit/contract
-note: schemas and fixtures/vectors/canonical.json only; do not tighten vendored JSON Schema
+note: schemas and fixtures/vectors/*.json only; do not tighten vendored JSON Schema
 EOF
 
 echo "pinned @ui8kit/contract ${COMMIT} -> ${DEST}"
