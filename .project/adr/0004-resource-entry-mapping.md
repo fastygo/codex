@@ -11,12 +11,11 @@ GoBackend and offline applications drift while claiming the same contract.
 
 ## Decision
 
-`Field.Localized` is the sole placement discriminator. Localized fields live
-in `Entry.Locales[locale].Data`; all other declared fields live in
-`Entry.Metadata`. Relation fields are non-localized.
-
-The built-in localized IDs `slug`, `title`, `content`, and `excerpt` mirror
-their Entry chrome maps. A duplicate value in locale data must match.
+From v0.4, `Field.Localized` means translatable, not a storage location.
+Declared non-chrome fields live in `Entry.Metadata`. Chrome `slug`, `title`,
+`content`, and `excerpt` are always localized strings on the Entry. Relation
+fields are non-localized. Translations are separate records that share `id`
+and differ in `locale`.
 
 `Resource.ValidateEntry` applies field binding, Codex semantic rules, and
 relation cardinality. `Resource.PublicProjection` removes private metadata and

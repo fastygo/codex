@@ -22,10 +22,12 @@ Conformance fixtures pin representative JSON. A breaking JSON name, required
 field, lifecycle value, or canonical ordering change requires an explicit
 pre-v1 migration note and minor release; after v1 it requires a major version.
 
-`Manifest.Digest` defines the contract identity profile: validate, canonicalize
-set-like values, serialize with Go `encoding/json`, and hash with the versioned
-`codex-manifest/v1:sha256:` prefix. It is an identity checksum, not a signed
-artifact.
+`Manifest.Digest` defines the v1 contract identity profile: validate,
+canonicalize set-like values, serialize with Go `encoding/json`, and hash with
+the versioned `codex-manifest/v1:sha256:` prefix. Entry identity uses profile
+`codex-entry/v1` (RFC 8785 JCS). Manifest v2 identity is JCS of
+`Canonical()` with prefix `codex-manifest/v2:sha256:`. These are identity
+checksums, not signed artifacts.
 
 ## Consequences
 

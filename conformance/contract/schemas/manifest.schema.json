@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schema.buildy.tw/manifest.schema.json",
+  "title": "Codex v0.4 Manifest (unchanged from v0.3)",
+  "description": "Codex v0.4.0 core (draft, docs/core-draft.md in github.com/ui8kit/contract). Structural check only; uniqueness of (id, locale) and slugs is checked by the @ui8kit/contract validator.",
+  "x-codex-version": "0.4.0",
+  "$ref": "#/$defs/Manifest",
+  "$defs": {
+    "Manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "resources"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Resource"
+          }
+        }
+      }
+    },
+    "Resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record"
+      ],
+      "properties": {
+        "record": {
+          "$ref": "#/$defs/RecordType"
+        },
+        "taxonomies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,62}$"
+          }
+        }
+      }
+    },
+    "RecordType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "scope"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "description": {
+          "type": "string"
+        },
+        "schema_version": {
+          "type": "string"
+        },
+        "owner_module": {
+          "type": "string"
+        },
+        "scope": {
+          "description": "Known: global workspace tenant user.",
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Field"
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Relation"
+          }
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "visibility": {
+          "type": "string"
+        }
+      }
+    },
+    "Field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "type": {
+          "description": "Known: text string textarea richtext markdown number boolean select datetime json object relation collection computed encrypted. Unknown non-empty types stay valid.",
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "owner_module": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "localized": {
+          "type": "boolean"
+        },
+        "default_value": {
+          "type": "string"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "value",
+              "label"
+            ],
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              "message": {
+                "type": "string"
+              },
+              "args": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "severity": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "items": {
+          "$ref": "#/$defs/Field"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Field"
+          }
+        },
+        "searchable": {
+          "type": "boolean"
+        },
+        "indexed": {
+          "type": "boolean"
+        },
+        "unique": {
+          "type": "boolean"
+        },
+        "sensitive": {
+          "type": "boolean"
+        },
+        "encrypted": {
+          "type": "boolean"
+        },
+        "ui_hint": {
+          "type": "string"
+        },
+        "storage_hint": {
+          "type": "string"
+        }
+      }
+    },
+    "Relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "target",
+        "cardinality"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "label": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$"
+        },
+        "target": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$"
+        },
+        "cardinality": {
+          "description": "Known: one-to-one one-to-many many-to-many.",
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "inverse_name": {
+          "type": "string"
+        },
+        "cross_workspace_policy": {
+          "type": "string"
+        },
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "cross_workspace_mode": {
+              "type": "string"
+            },
+            "allowed_targets": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "capability": {
+              "type": "string"
+            },
+            "read_only": {
+              "type": "boolean"
+            }
+          }
+        },
+        "delete_behavior": {
+          "description": "Known: restrict cascade nullify.",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

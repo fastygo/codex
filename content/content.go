@@ -2,6 +2,7 @@
 package content
 
 import (
+	"regexp"
 	"strings"
 	"time"
 
@@ -22,6 +23,7 @@ const (
 
 const (
 	StatusDraft     Status = "draft"
+	StatusPending   Status = "pending"
 	StatusScheduled Status = "scheduled"
 	StatusPublished Status = "published"
 	StatusArchived  Status = "archived"
@@ -33,7 +35,16 @@ const (
 	VisibilityPrivate Visibility = "private"
 )
 
-type LocalizedText map[string]string
+// MaxSafeInteger is 2^53-1, the largest integer IEEE-754 float64 (and JSON.parse)
+// can represent exactly. Integer and money rules, and the canonical profile,
+// reject |n| greater than this (Q2).
+const MaxSafeInteger = 1<<53 - 1
+
+// RecordIDPattern is the Q8 opaque id grammar. The vendored JSON Schema stays
+// looser (\S); Go conformance and Validate enforce this pattern.
+const RecordIDPattern = `^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`
+
+var recordID = regexp.MustCompile(RecordIDPattern)
 
 type MetadataValue struct {
 	Value   any  `json:"value"`
@@ -45,73 +56,100 @@ type TermRef struct {
 	TermID   string `json:"term_id"`
 }
 
-// Entry is the shared content aggregate. Kind is the manifest-backed post type.
-type Entry struct {
-	ID              ID                        `json:"id"`
-	Kind            Kind                      `json:"kind"`
-	Status          Status                    `json:"status"`
-	Visibility      Visibility                `json:"visibility"`
-	Slug            LocalizedText             `json:"slug"`
-	Title           LocalizedText             `json:"title"`
-	Content         LocalizedText             `json:"content,omitempty"`
-	Excerpt         LocalizedText             `json:"excerpt,omitempty"`
-	AuthorID        string                    `json:"author_id,omitempty"`
-	ParentID        ID                        `json:"parent_id,omitempty"`
-	FeaturedMediaID string                    `json:"featured_media_id,omitempty"`
-	Template        string                    `json:"template,omitempty"`
-	Metadata        map[string]MetadataValue  `json:"metadata,omitempty"`
-	Locales         map[string]LocaleDocument `json:"locales,omitempty"`
-	Terms           []TermRef                 `json:"terms,omitempty"`
-	Version         uint64                    `json:"version"`
-	CreatedAt       time.Time                 `json:"created_at"`
-	UpdatedAt       time.Time                 `json:"updated_at"`
-	PublishedAt     *time.Time                `json:"published_at,omitempty"`
-	DeletedAt       *time.Time                `json:"deleted_at,omitempty"`
+// Origin records where a value came from during a migration or import.
+type Origin struct {
+	System string `json:"system"`
+	ID     string `json:"id"`
 }
 
-// Validate verifies invariants independent from storage and delivery.
+// Discussion is whether comments and pings are open.
+type Discussion struct {
+	Comments bool `json:"comments"`
+	Pings    bool `json:"pings"`
+}
+
+// ChromeField reports whether id is a v0.4 entry chrome field. Chrome is always
+// localized (Q7); it does not use Field.Localized.
+func ChromeField(id string) bool {
+	switch id {
+	case "slug", "title", "content", "excerpt":
+		return true
+	default:
+		return false
+	}
+}
+
+// Entry is the shared content aggregate. Kind is the manifest-backed post type.
+// The record key is (id, locale). Translations are separate records.
+type Entry struct {
+	ID              ID                       `json:"id"`
+	Locale          string                   `json:"locale"`
+	Kind            Kind                     `json:"kind"`
+	Status          Status                   `json:"status"`
+	Visibility      Visibility               `json:"visibility"`
+	Slug            string                   `json:"slug"`
+	Title           string                   `json:"title"`
+	Content         string                   `json:"content,omitempty"`
+	Excerpt         string                   `json:"excerpt,omitempty"`
+	AuthorID        string                   `json:"author_id,omitempty"`
+	ParentID        ID                       `json:"parent_id,omitempty"`
+	FeaturedMediaID string                   `json:"featured_media_id,omitempty"`
+	Template        string                   `json:"template,omitempty"`
+	Metadata        map[string]MetadataValue `json:"metadata,omitempty"`
+	Terms           []TermRef                `json:"terms,omitempty"`
+	Order           *int64                   `json:"order,omitempty"`
+	Pinned          *bool                    `json:"pinned,omitempty"`
+	Format          string                   `json:"format,omitempty"`
+	Discussion      *Discussion              `json:"discussion,omitempty"`
+	Origin          []Origin                 `json:"origin,omitempty"`
+	Version         uint64                   `json:"version"`
+	CreatedAt       time.Time                `json:"created_at"`
+	UpdatedAt       time.Time                `json:"updated_at"`
+	PublishedAt     *time.Time               `json:"published_at,omitempty"`
+	DeletedAt       *time.Time               `json:"deleted_at,omitempty"`
+}
+
+// Validate verifies v0.4 core invariants independent from storage and delivery.
 func (entry Entry) Validate() error {
 	switch {
 	case strings.TrimSpace(string(entry.ID)) == "":
-		return validation.New("content.entry.id_required", "id", "content id is required")
+		return validation.New(validation.CoreIDRequired, "id", "id is required")
+	case !ValidRecordID(string(entry.ID)):
+		return validation.New(validation.CoreIDInvalid, "id", "id must be opaque ASCII matching "+RecordIDPattern)
+	case !ValidLocale(entry.Locale):
+		return validation.New(validation.CoreLocaleInvalid, "locale", "locale must be a BCP 47 tag like \"ru\" or \"en-US\"")
 	case !ValidKind(entry.Kind):
-		return validation.New("content.entry.kind_invalid", "kind", "content kind is invalid")
+		return validation.New(validation.CoreEntryKindInvalid, "kind", "kind is invalid")
 	case !entry.Status.Valid():
-		return validation.New("content.entry.status_invalid", "status", "content status is invalid")
+		return validation.New(validation.CoreEntryStatusInvalid, "status", "content status is invalid")
 	case !entry.Visibility.Valid():
-		return validation.New("content.entry.visibility_invalid", "visibility", "content visibility is invalid")
+		return validation.New(validation.CoreEntryVisibilityInvalid, "visibility", "visibility must be public or private")
+	case strings.TrimSpace(entry.Slug) == "":
+		return validation.New(validation.CoreEntrySlugRequired, "slug", "slug is required")
 	case entry.Version == 0:
-		return validation.New("content.entry.version_required", "version", "content version is required")
+		return validation.New(validation.CoreVersionRequired, "version", "version must be an integer >= 1")
 	case entry.CreatedAt.IsZero() || entry.UpdatedAt.IsZero():
-		return validation.New("content.entry.timestamps_required", "created_at", "content timestamps are required")
+		return validation.New(validation.CoreTimestampsRequired, "created_at", "created_at and updated_at must be RFC 3339")
 	case entry.UpdatedAt.Before(entry.CreatedAt):
-		return validation.New("content.entry.timestamps_order", "updated_at", "content updated_at precedes created_at")
+		return validation.New(validation.CoreTimestampsOrder, "updated_at", "updated_at precedes created_at")
 	case entry.ParentID != "" && entry.ParentID == entry.ID:
-		return validation.New("content.entry.parent_self", "parent_id", "content cannot be its own parent")
+		return validation.New(validation.CoreEntryParentSelf, "parent_id", "entry cannot be its own parent")
 	case entry.Status == StatusScheduled && entry.PublishedAt == nil:
-		return validation.New("content.entry.published_at_required", "published_at", "scheduled content requires published_at")
-	case entry.Status == StatusScheduled && !entry.PublishedAt.After(entry.UpdatedAt):
-		return validation.New("content.entry.published_at_future", "published_at", "scheduled content requires a future published_at")
+		return validation.New(validation.CoreEntryPublishedAtRequired, "published_at", "scheduled entry requires published_at")
 	case entry.Status == StatusTrashed && entry.DeletedAt == nil:
-		return validation.New("content.entry.deleted_at_required", "deleted_at", "trashed content requires deleted_at")
-	case !hasLocalizedValue(entry.Slug):
-		return validation.New("content.entry.slug_required", "slug", "content slug is required")
-	case !hasLocalizedValue(entry.Title):
-		return validation.New("content.entry.title_required", "title", "content title is required")
+		return validation.New(validation.CoreEntryDeletedAtRequired, "deleted_at", "trashed entry requires deleted_at")
 	}
-	for _, values := range []LocalizedText{entry.Slug, entry.Title, entry.Content, entry.Excerpt} {
-		if err := ValidateLocalizedText(values); err != nil {
-			return validation.Wrap("content.entry.localized_text_invalid", "", err)
-		}
+	if err := validateOrigin(entry.Origin); err != nil {
+		return err
 	}
 	if err := validateMetadata(entry.Metadata); err != nil {
 		return err
 	}
-	if err := validateLocales(entry.Locales); err != nil {
-		return err
-	}
 	if err := validateTermRefs(entry.Terms); err != nil {
 		return err
+	}
+	if entry.Discussion != nil {
+		// Struct fields are always bool; nothing else to check on a typed value.
 	}
 	return nil
 }
@@ -127,6 +165,7 @@ func (entry Entry) IsPublicAt(now time.Time) bool {
 }
 
 // PublicProjection removes private metadata and clones mutable containers.
+// Sensitive fields declared on a resource are stripped by schema.Resource.PublicProjection.
 func (entry Entry) PublicProjection() Entry {
 	projected := entry.Clone()
 	for key, value := range projected.Metadata {
@@ -134,19 +173,30 @@ func (entry Entry) PublicProjection() Entry {
 			delete(projected.Metadata, key)
 		}
 	}
+	if len(projected.Metadata) == 0 {
+		projected.Metadata = nil
+	}
 	return projected
 }
 
 // Clone copies all contract-owned mutable containers.
 func (entry Entry) Clone() Entry {
 	cloned := entry
-	cloned.Slug = cloneLocalizedText(entry.Slug)
-	cloned.Title = cloneLocalizedText(entry.Title)
-	cloned.Content = cloneLocalizedText(entry.Content)
-	cloned.Excerpt = cloneLocalizedText(entry.Excerpt)
 	cloned.Metadata = cloneMetadata(entry.Metadata)
-	cloned.Locales = cloneLocales(entry.Locales)
 	cloned.Terms = append([]TermRef(nil), entry.Terms...)
+	cloned.Origin = append([]Origin(nil), entry.Origin...)
+	if entry.Discussion != nil {
+		value := *entry.Discussion
+		cloned.Discussion = &value
+	}
+	if entry.Order != nil {
+		value := *entry.Order
+		cloned.Order = &value
+	}
+	if entry.Pinned != nil {
+		value := *entry.Pinned
+		cloned.Pinned = &value
+	}
 	if entry.PublishedAt != nil {
 		value := *entry.PublishedAt
 		cloned.PublishedAt = &value
@@ -160,7 +210,7 @@ func (entry Entry) Clone() Entry {
 
 func (status Status) Valid() bool {
 	switch status {
-	case StatusDraft, StatusScheduled, StatusPublished, StatusArchived, StatusTrashed:
+	case StatusDraft, StatusPending, StatusScheduled, StatusPublished, StatusArchived, StatusTrashed:
 		return true
 	default:
 		return false
@@ -175,7 +225,7 @@ func ValidKind(kind Kind) bool {
 	return ValidIdentifier(string(kind))
 }
 
-// ValidIdentifier reports whether value is a canonical Codex identifier.
+// ValidIdentifier reports whether value is a canonical Codex identifier (kinds, taxonomies).
 func ValidIdentifier(value string) bool {
 	if len(value) == 0 || len(value) > 63 || value[0] < 'a' || value[0] > 'z' {
 		return false
@@ -191,33 +241,41 @@ func ValidIdentifier(value string) bool {
 	return true
 }
 
-func hasLocalizedValue(values LocalizedText) bool {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return true
-		}
-	}
-	return false
+// ValidRecordID reports whether value matches the Q8 opaque id grammar.
+func ValidRecordID(value string) bool {
+	return len(value) >= 1 && len(value) <= 128 && recordID.MatchString(value)
 }
 
-func ValidateLocalizedText(values LocalizedText) error {
-	for locale := range values {
-		if NormalizeLocale(locale) == "" || NormalizeLocale(locale) != locale {
-			return validation.New("content.locale.noncanonical", locale, "localized text locale is not canonical")
-		}
-	}
-	return nil
+// IDFromKindInt is the Q8 rule for an integer platform primary key: <kind>-<n>.
+// Canonicalize does not rewrite ids; adapters use this when creating records.
+func IDFromKindInt(kind Kind, n int64) string {
+	var b strings.Builder
+	b.WriteString(string(kind))
+	b.WriteByte('-')
+	b.WriteString(itoa(n))
+	return b.String()
 }
 
-func cloneLocalizedText(source LocalizedText) LocalizedText {
-	if source == nil {
-		return nil
+func itoa(n int64) string {
+	if n == 0 {
+		return "0"
 	}
-	target := make(LocalizedText, len(source))
-	for key, value := range source {
-		target[key] = value
+	negative := n < 0
+	if negative {
+		n = -n
 	}
-	return target
+	var buf [32]byte
+	i := len(buf)
+	for n > 0 {
+		i--
+		buf[i] = byte('0' + n%10)
+		n /= 10
+	}
+	if negative {
+		i--
+		buf[i] = '-'
+	}
+	return string(buf[i:])
 }
 
 func cloneMetadata(source map[string]MetadataValue) map[string]MetadataValue {
@@ -235,26 +293,21 @@ func cloneMetadata(source map[string]MetadataValue) map[string]MetadataValue {
 func validateMetadata(metadata map[string]MetadataValue) error {
 	for key, value := range metadata {
 		if strings.TrimSpace(key) == "" {
-			return validation.New("content.metadata.key_required", key, "content metadata key is required")
+			return validation.New(validation.CoreMetadataKeyRequired, key, "metadata key is required")
 		}
 		if err := ValidateJSONValue(value.Value); err != nil {
-			return validation.Wrap("content.metadata.value_invalid", key, err)
+			return validation.Wrap(validation.CoreMetadataInvalid, key, err)
 		}
 	}
 	return nil
 }
 
-func validateLocales(locales map[string]LocaleDocument) error {
-	for locale, document := range locales {
-		if NormalizeLocale(locale) == "" || NormalizeLocale(locale) != locale {
-			return validation.New("content.locale.noncanonical", locale, "content locale is not canonical")
+func validateOrigin(origin []Origin) error {
+	for i, item := range origin {
+		if strings.TrimSpace(item.System) == "" || strings.TrimSpace(item.ID) == "" {
+			return validation.New(validation.CoreOriginInvalid, "origin", "origin needs a non-empty system and a string id")
 		}
-		if !document.Status.Valid() {
-			return validation.New("content.locale.status_invalid", locale+".status", "content locale status is invalid")
-		}
-		if err := ValidateJSONValue(document.Data); err != nil {
-			return validation.Wrap("content.locale.data_invalid", locale+".data", err)
-		}
+		_ = i
 	}
 	return nil
 }
@@ -263,10 +316,10 @@ func validateTermRefs(terms []TermRef) error {
 	seen := make(map[TermRef]struct{}, len(terms))
 	for _, term := range terms {
 		if !ValidIdentifier(term.Taxonomy) || strings.TrimSpace(term.TermID) == "" {
-			return validation.New("content.term_ref.incomplete", term.Taxonomy, "content term reference is incomplete")
+			return validation.New(validation.CoreTermRefIncomplete, term.Taxonomy, "term reference must be {taxonomy, term_id}")
 		}
 		if _, exists := seen[term]; exists {
-			return validation.New("content.term_ref.duplicated", term.Taxonomy, "content term reference is duplicated")
+			return validation.New(validation.CoreTermRefDuplicated, term.Taxonomy, "content term reference is duplicated")
 		}
 		seen[term] = struct{}{}
 	}

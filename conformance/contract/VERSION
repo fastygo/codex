@@ -1,0 +1,6 @@
+package: @ui8kit/contract
+version: 0.2.0
+commit: 8299fee
+parent: 867eb06
+source: https://github.com/ui8kit/contract
+note: schemas match 867eb06; 8299fee adds src/canonical.ts, docs/canonical.md, fixtures/vectors/canonical.json

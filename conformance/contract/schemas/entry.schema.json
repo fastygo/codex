@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schema.buildy.tw/entry.schema.json",
+  "title": "Codex v0.4 Entry",
+  "description": "Codex v0.4.0 core (draft, docs/core-draft.md in github.com/ui8kit/contract). Structural check only; uniqueness of (id, locale) and slugs is checked by the @ui8kit/contract validator.",
+  "x-codex-version": "0.4.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "locale",
+    "kind",
+    "status",
+    "visibility",
+    "slug",
+    "title",
+    "version",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "locale": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "BCP 47 tag, e.g. ru, en-US. The record key is (id, locale)."
+    },
+    "origin": {
+      "description": "Where the record came from (migrations). Platform ids are strings here.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "system",
+          "id"
+        ],
+        "properties": {
+          "system": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "description": "Typed values: numbers stay numbers, booleans stay booleans.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "\\S"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {},
+          "private": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "kind": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,62}$"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "pending",
+        "scheduled",
+        "published",
+        "archived",
+        "trashed"
+      ]
+    },
+    "visibility": {
+      "enum": [
+        "public",
+        "private"
+      ]
+    },
+    "slug": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "title": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "excerpt": {
+      "type": "string"
+    },
+    "author_id": {
+      "type": "string"
+    },
+    "parent_id": {
+      "type": "string"
+    },
+    "featured_media_id": {
+      "type": "string"
+    },
+    "template": {
+      "type": "string"
+    },
+    "terms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taxonomy",
+          "term_id"
+        ],
+        "properties": {
+          "taxonomy": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,62}$"
+          },
+          "term_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S"
+          }
+        }
+      }
+    },
+    "order": {
+      "type": "integer"
+    },
+    "pinned": {
+      "type": "boolean"
+    },
+    "format": {
+      "type": "string"
+    },
+    "discussion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "comments",
+        "pings"
+      ],
+      "properties": {
+        "comments": {
+          "type": "boolean"
+        },
+        "pings": {
+          "type": "boolean"
+        }
+      }
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "deleted_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

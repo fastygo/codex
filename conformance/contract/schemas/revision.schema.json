@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schema.buildy.tw/revision.schema.json",
+  "title": "Codex v0.4 Revision (bound to (entry_id, locale))",
+  "description": "Codex v0.4.0 core (draft, docs/core-draft.md in github.com/ui8kit/contract). Structural check only; uniqueness of (id, locale) and slugs is checked by the @ui8kit/contract validator.",
+  "x-codex-version": "0.4.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "entry_id",
+    "locale",
+    "version",
+    "snapshot",
+    "author_id",
+    "created_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "entry_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "locale": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "BCP 47 tag, e.g. ru, en-US. The record key is (id, locale)."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "snapshot": {
+      "$ref": "https://schema.buildy.tw/entry.schema.json"
+    },
+    "author_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

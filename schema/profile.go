@@ -75,6 +75,8 @@ func validateFieldProfile(field Field, nested bool) error {
 			}
 		case RuleNullable, RuleReadOnly:
 			// These rules add policy without changing the base field type.
+		default:
+			return validation.New(validation.SchemaFieldRuleUnknown, string(field.ID), "field rule is not a known Codex rule")
 		}
 	}
 	if _, nullable := FieldRule(field, RuleNullable); nullable && field.Required {

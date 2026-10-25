@@ -7,6 +7,7 @@ import (
 
 	"github.com/fastygo/codex/content"
 	"github.com/fastygo/codex/schema"
+	"github.com/fastygo/codex/validation"
 )
 
 func TestResourceValidateEntry(t *testing.T) {
@@ -24,11 +25,6 @@ func TestResourceValidateEntryRejectsWrongLocationAndRule(t *testing.T) {
 		"fractional integer": func(entry *content.Entry) {
 			entry.Metadata["telegram_message_id"] = content.MetadataValue{Value: 10.5}
 		},
-		"chrome mismatch": func(entry *content.Entry) {
-			document := entry.Locales["und"]
-			document.Data["content"] = "different"
-			entry.Locales["und"] = document
-		},
 	}
 	for name, mutate := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -44,10 +40,9 @@ func TestResourceValidateEntryRejectsWrongLocationAndRule(t *testing.T) {
 func TestResourceValidateEntryRelationCardinality(t *testing.T) {
 	now := testTime()
 	entry := content.Entry{
-		ID: "conversation-1", Kind: "conversation",
+		ID: "conversation-1", Locale: "en", Kind: "conversation",
 		Status: content.StatusPublished, Visibility: content.VisibilityPrivate,
-		Slug:  content.LocalizedText{"und": "conversation-1"},
-		Title: content.LocalizedText{"und": "Conversation 1"},
+		Slug: "conversation-1", Title: "Conversation 1",
 		Metadata: map[string]content.MetadataValue{
 			"telegram_chat_id": {Value: "42"},
 			"messages":         {Value: []string{"message-1", "message-2"}},
@@ -76,10 +71,7 @@ func TestResourcePublicProjectionUsesSchemaSensitivity(t *testing.T) {
 	if _, exists := projected.Metadata["telegram_message_id"]; exists {
 		t.Fatal("sensitive shared field survived projection")
 	}
-	if _, exists := projected.Locales["und"].Data["content"]; exists {
-		t.Fatal("sensitive localized field survived projection")
-	}
-	if projected.Content != nil {
+	if projected.Content != "" {
 		t.Fatal("sensitive content chrome survived projection")
 	}
 }
@@ -100,9 +92,9 @@ func TestResourcePublicProjectionRemovesNestedSensitiveFields(t *testing.T) {
 	}}
 	now := testTime()
 	entry := content.Entry{
-		ID: "profile-1", Kind: "profile",
+		ID: "profile-1", Locale: "en", Kind: "profile",
 		Status: content.StatusPublished, Visibility: content.VisibilityPublic,
-		Slug: content.LocalizedText{"en": "profile-1"}, Title: content.LocalizedText{"en": "Profile 1"},
+		Slug: "profile-1", Title: "Profile 1",
 		Metadata: map[string]content.MetadataValue{
 			"details": {Value: map[string]any{"display_name": "Alice", "secret": "hidden"}},
 			"tokens":  {Value: []string{"first-secret", "second-secret"}},
@@ -134,6 +126,7 @@ func TestCodexSemanticRules(t *testing.T) {
 	}{
 		{name: "integer", field: 0, value: 42, valid: true},
 		{name: "integer fraction", field: 0, value: 4.2},
+		{name: "unsafe integer", field: 0, value: json.Number("9007199254740993")},
 	}
 	resource := messageResource()
 	for _, test := range tests {
@@ -151,32 +144,39 @@ func TestCodexSemanticRules(t *testing.T) {
 	}
 }
 
+func TestMoneyIsSafeIntegerAndAllowsNegatives(t *testing.T) {
+	resource := semanticResource()
+	now := testTime()
+	entry := semanticEntry(now)
+	if err := resource.ValidateEntry(entry); err != nil {
+		t.Fatalf("ValidateEntry() error = %v", err)
+	}
+	entry.Metadata["money_value"] = content.MetadataValue{Value: int64(-1250)}
+	if err := resource.ValidateEntry(entry); err != nil {
+		t.Fatalf("negative money error = %v", err)
+	}
+	entry.Metadata["money_value"] = content.MetadataValue{Value: json.Number("99.95")}
+	if err := resource.ValidateEntry(entry); err == nil {
+		t.Fatal("fractional money accepted")
+	}
+	delete(entry.Metadata, "currency")
+	entry.Metadata["money_value"] = content.MetadataValue{Value: int64(1250)}
+	err := resource.ValidateEntry(entry)
+	if err == nil {
+		t.Fatal("money without currency accepted")
+	}
+	if got := validation.Code(err); got != validation.ManifestCurrencyMissing {
+		t.Fatalf("currency missing code = %q", got)
+	}
+	if err := resource.ValidateEntryWithCurrency(entry, "EUR"); err != nil {
+		t.Fatalf("default currency error = %v", err)
+	}
+}
+
 func TestGoBackendFieldSemanticsRoundTrip(t *testing.T) {
 	resource := semanticResource()
 	now := testTime()
-	entry := content.Entry{
-		ID: "semantic-1", Kind: "semantic",
-		Status: content.StatusPublished, Visibility: content.VisibilityPrivate,
-		Slug:  content.LocalizedText{"en": "semantic-1"},
-		Title: content.LocalizedText{"en": "Semantic 1"},
-		Metadata: map[string]content.MetadataValue{
-			"integer_value":  {Value: json.Number("42")},
-			"decimal_value":  {Value: json.Number("10.25")},
-			"money_value":    {Value: json.Number("99.95")},
-			"date_value":     {Value: "2026-09-09"},
-			"uri_value":      {Value: "https://example.test/item"},
-			"uuid_value":     {Value: "018f0f4c-9b7a-7cc1-8d5f-5f4f44582000"},
-			"nullable_value": {Value: nil},
-			"readonly_value": {Value: "derived"},
-			"json_value":     {Value: "scalar JSON is retained"},
-			"enum_value":     {Value: "beta"},
-			"object_value":   {Value: map[string]any{"name": "nested"}},
-			"collection_value": {Value: []any{
-				"first", "second",
-			}},
-		},
-		Version: 1, CreatedAt: now, UpdatedAt: now,
-	}
+	entry := semanticEntry(now)
 	if err := resource.ValidateEntry(entry); err != nil {
 		t.Fatalf("ValidateEntry() semantic profile error = %v", err)
 	}
@@ -213,23 +213,47 @@ func TestMediaUsesARelation(t *testing.T) {
 	}
 }
 
+func TestEqualCanonical(t *testing.T) {
+	if !schema.EqualCanonical(map[string]any{"b": 1, "a": 2}, map[string]any{"a": 2, "b": 1}) {
+		t.Fatal("EqualCanonical() key order should not matter")
+	}
+	if schema.EqualCanonical(1, "1") {
+		t.Fatal("EqualCanonical() mixed types")
+	}
+}
+
 func validMessage() content.Entry {
 	now := testTime()
 	return content.Entry{
-		ID: "telegram:group:42:1001", Kind: "message",
+		ID: "telegram:group:42:1001", Locale: "und", Kind: "message",
 		Status: content.StatusPublished, Visibility: content.VisibilityPrivate,
-		Slug:    content.LocalizedText{"und": "message-1001"},
-		Title:   content.LocalizedText{"und": "Message 1001"},
-		Content: content.LocalizedText{"und": "Hello"},
+		Slug: "message-1001", Title: "Message 1001", Content: "Hello",
 		Metadata: map[string]content.MetadataValue{
 			"telegram_message_id": {Value: 1001},
 		},
-		Locales: map[string]content.LocaleDocument{
-			"und": {
-				Data:      map[string]any{"content": "Hello"},
-				Status:    content.StatusPublished,
-				UpdatedAt: now,
-			},
+		Version: 1, CreatedAt: now, UpdatedAt: now,
+	}
+}
+
+func semanticEntry(now time.Time) content.Entry {
+	return content.Entry{
+		ID: "semantic-1", Locale: "en", Kind: "semantic",
+		Status: content.StatusPublished, Visibility: content.VisibilityPrivate,
+		Slug: "semantic-1", Title: "Semantic 1",
+		Metadata: map[string]content.MetadataValue{
+			"integer_value":    {Value: json.Number("42")},
+			"decimal_value":    {Value: json.Number("10.25")},
+			"money_value":      {Value: json.Number("9995")},
+			"currency":         {Value: "USD"},
+			"date_value":       {Value: "2026-09-09"},
+			"uri_value":        {Value: "https://example.test/item"},
+			"uuid_value":       {Value: "018f0f4c-9b7a-7cc1-8d5f-5f4f44582000"},
+			"nullable_value":   {Value: nil},
+			"readonly_value":   {Value: "derived"},
+			"json_value":       {Value: "scalar JSON is retained"},
+			"enum_value":       {Value: "beta"},
+			"object_value":     {Value: map[string]any{"name": "nested"}},
+			"collection_value": {Value: []any{"first", "second"}},
 		},
 		Version: 1, CreatedAt: now, UpdatedAt: now,
 	}
@@ -245,6 +269,7 @@ func semanticResource() schema.Resource {
 			{ID: "integer_value", Label: "Integer", Type: schema.FieldNumber, Rules: rule(schema.RuleInteger)},
 			{ID: "decimal_value", Label: "Decimal", Type: schema.FieldNumber, Rules: rule(schema.RuleDecimal)},
 			{ID: "money_value", Label: "Money", Type: schema.FieldNumber, Rules: rule(schema.RuleMoney)},
+			{ID: "currency", Label: "Currency", Type: schema.FieldString},
 			{ID: "date_value", Label: "Date", Type: schema.FieldDateTime, Rules: rule(schema.RuleDate)},
 			{ID: "uri_value", Label: "URI", Type: schema.FieldString, Rules: rule(schema.RuleURI)},
 			{ID: "uuid_value", Label: "UUID", Type: schema.FieldString, Rules: rule(schema.RuleUUID)},

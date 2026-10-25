@@ -3,7 +3,9 @@ package conformance_test
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/fastygo/codex/conformance"
@@ -22,8 +24,11 @@ func TestEntryFixture(t *testing.T) {
 		t.Fatalf("unexpected entry = %#v", entry)
 	}
 	sequence, ok := entry.Metadata["source_sequence"].Value.(json.Number)
-	if !ok || sequence.String() != "9007199254740993" {
-		t.Fatalf("source sequence = %#v, want lossless json.Number", entry.Metadata["source_sequence"].Value)
+	if !ok || sequence.String() != "9007199254740991" {
+		t.Fatalf("source sequence = %#v, want safe json.Number", entry.Metadata["source_sequence"].Value)
+	}
+	if entry.Locale != "en" || entry.Slug != "hello-from-codex" {
+		t.Fatalf("v0.4 chrome = locale %q slug %q", entry.Locale, entry.Slug)
 	}
 }
 
@@ -64,10 +69,10 @@ func TestResourceEntryFixtureFailureCode(t *testing.T) {
 		"example.manifest.json",
 		"article.entry.invalid-location.json",
 	)
-	if got := validation.Code(err); got != "schema.entry.field_location" {
+	if got := validation.Code(err); got != validation.ManifestFieldRequired {
 		t.Fatalf("validation code = %q, error = %v", got, err)
 	}
-	if got := validation.Path(err); got != "en.source_id" {
+	if got := validation.Path(err); got != "metadata.source_id" {
 		t.Fatalf("validation path = %q", got)
 	}
 }
@@ -187,5 +192,19 @@ func decodeSemantic(t *testing.T, data []byte) any {
 func TestReadFixtureRejectsTraversal(t *testing.T) {
 	if _, err := conformance.ReadFixture("../article.entry.json"); err == nil {
 		t.Fatal("ReadFixture() error = nil")
+	}
+}
+
+func TestContractPin(t *testing.T) {
+	data, err := os.ReadFile("contract/VERSION")
+	if err != nil {
+		t.Fatalf("contract pin: %v", err)
+	}
+	text := string(data)
+	if !strings.Contains(text, "8299fee") || !strings.Contains(text, "867eb06") {
+		t.Fatalf("unexpected contract pin:\n%s", text)
+	}
+	if _, err := os.Stat("contract/fixtures/vectors/canonical.json"); err != nil {
+		t.Fatalf("official vectors: %v", err)
 	}
 }

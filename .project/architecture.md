@@ -17,9 +17,16 @@ fields into editor slots.
 
 ### `content`
 
-Defines `Entry`, `Kind`, `Status`, `Visibility`, `LocalizedText`,
-`LocaleDocument`, metadata values, taxonomy references, locale resolution,
-public projection, slug normalization, and protocol-neutral validation.
+Defines `Entry`, `Kind`, `Status`, `Visibility`, string chrome, metadata
+values, taxonomy references, locale pick, public projection, slug
+normalization, comment/menu/dictionary/settings records, and protocol-neutral
+validation. The record key is `(id, locale)`.
+
+### `canonical`
+
+Implements profile `codex-entry/v1`: a strict JSON parser and RFC 8785 JCS
+serializer ported from `@ui8kit/contract` `src/canonical.ts`. Go
+`encoding/json` is not used for canonical output.
 
 ### `schema`
 
@@ -32,35 +39,46 @@ Canonicalization sorts resources, relations, capabilities, and taxonomy names.
 It preserves field and option order because renderers may treat that order as
 presentation semantics.
 
-`Field.Localized` is the storage discriminator: localized values live in
-`Entry.Locales`; all other declared values live in `Entry.Metadata`.
-`Resource.PublicProjection` applies field sensitivity to both locations.
+`Field.Localized` means translatable. Declared non-chrome fields live in
+`Entry.Metadata`. Chrome is always localized. `Resource.PublicProjection`
+applies field sensitivity. `Manifest.DigestV2` hashes JCS of `Canonical()`.
+
+### `validate`
+
+Ports `validateCollectionV04`, including `entry.localized_mismatch`.
 
 ### `taxonomy`
 
-Defines flat or hierarchical taxonomy definitions, localized terms,
+Defines flat or hierarchical taxonomy definitions, string+locale terms,
 assignments, allowed resource kinds, and cycle/missing-parent validation.
 
 ### `revision`
 
-Defines immutable snapshots of a content Entry and verifies entry/version
-identity. Persistence and restore orchestration remain application concerns.
+Defines immutable snapshots of a content Entry and verifies
+`(entry_id, locale, version)` identity. Persistence and restore orchestration
+remain application concerns.
+
+### `migrate`
+
+Converts v0.3 JSON documents to v0.4 records for a requested locale.
 
 ### `conformance`
 
 Ships public fixtures and assertions for downstream adapters. Conformance
 tests verify JSON round trips, canonical manifests, lifecycle validation,
-locale fallback, taxonomy hierarchy, revisions, and unknown product kinds.
+locale pick, taxonomy hierarchy, revisions, and the official
+`codex-entry/v1` vectors pinned from `@ui8kit/contract`.
 
 ## JSON boundary
 
 JSON tags are part of the public compatibility contract but do not imply REST.
 Adapters may store or transport the same shapes. Unknown product fields belong
-inside locale documents or metadata and must survive compatible round trips.
+inside metadata and must survive compatible round trips.
 
-Canonicalization provides deterministic semantic ordering; it is not a
-cryptographic signature format. Consumers sign a specified serialized form if
-needed.
+Entry canonicalization is RFC 8785 JCS (`codex-entry/v1`). Manifest v1
+canonicalization remains Go `encoding/json` of `Canonical()`; v2 is JCS.
+Neither digest is a cryptographic signature format. Consumers sign a specified
+serialized form if needed.
 
 ## Product and delivery boundary
 
@@ -74,9 +92,11 @@ They are deliberately absent from `schema.Resource`.
 
 ## Contract identity
 
-`Manifest.Digest` hashes canonical JSON with a versioned prefix. Validation
-errors expose machine-readable codes and paths through the `validation`
-package. Human messages may improve without changing the contract.
+`Manifest.Digest` hashes canonical JSON with a versioned
+`codex-manifest/v1:sha256:` prefix. `Manifest.DigestV2` uses JCS and
+`codex-manifest/v2:sha256:`. Validation errors expose machine-readable codes
+and paths through the `validation` package. Human messages may improve without
+changing the contract.
 
 ## Migration boundary
 

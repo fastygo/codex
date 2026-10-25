@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fastygo/codex/schema"
+	"github.com/fastygo/codex/validation"
 )
 
 func TestManifestWithProductResources(t *testing.T) {
@@ -142,11 +143,43 @@ func TestRelationRequiresMatchingNonLocalizedField(t *testing.T) {
 	}
 }
 
-func TestEntryChromeFieldMustBeLocalized(t *testing.T) {
+func TestEntryChromeFieldDoesNotRequireLocalizedFlag(t *testing.T) {
 	resource := messageResource()
 	resource.Record.Fields[1].Localized = false
-	if err := resource.Validate(); err == nil {
-		t.Fatal("Validate() accepted non-localized content field")
+	if err := resource.Validate(); err != nil {
+		t.Fatalf("chrome is always localized; Localized flag is not required: %v", err)
+	}
+}
+
+func TestUnknownFieldRuleIsRejected(t *testing.T) {
+	field := schema.Field{
+		ID: "count", Label: "Count", Type: schema.FieldNumber,
+		Rules: []schema.ValidationRule{{Name: "fastygo.codex/nope"}},
+	}
+	err := schema.ValidateFieldProfile(field)
+	if err == nil {
+		t.Fatal("ValidateFieldProfile() error = nil")
+	}
+	if got := validation.Code(err); got != validation.SchemaFieldRuleUnknown {
+		t.Fatalf("code = %q, want %s", got, validation.SchemaFieldRuleUnknown)
+	}
+}
+
+func TestManifestDigestV2UsesJCS(t *testing.T) {
+	manifest := productManifest()
+	v1, err := manifest.Digest()
+	if err != nil {
+		t.Fatalf("Digest() error = %v", err)
+	}
+	v2, err := manifest.DigestV2()
+	if err != nil {
+		t.Fatalf("DigestV2() error = %v", err)
+	}
+	if v1 == v2 {
+		t.Fatal("v1 and v2 digests should differ")
+	}
+	if want := "codex-manifest/v2:sha256:"; len(v2) < len(want) || v2[:len(want)] != want {
+		t.Fatalf("DigestV2() = %q", v2)
 	}
 }
 

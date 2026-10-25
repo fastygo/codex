@@ -1,9 +1,8 @@
 {
   "definition": {
     "id": "topic",
-    "label": {
-      "en": "Topic"
-    },
+    "locale": "en",
+    "label": "Topic",
     "mode": "hierarchical",
     "assigned_to_kinds": [
       "article"
@@ -14,26 +13,24 @@
   "terms": [
     {
       "id": "engineering",
+      "locale": "en",
       "taxonomy_id": "topic",
-      "name": {
-        "en": "Engineering"
-      },
-      "slug": {
-        "en": "engineering"
-      },
-      "version": 1
+      "name": "Engineering",
+      "slug": "engineering",
+      "version": 1,
+      "created_at": "2026-09-09T12:00:00Z",
+      "updated_at": "2026-09-09T12:00:00Z"
     },
     {
       "id": "architecture",
+      "locale": "en",
       "taxonomy_id": "topic",
-      "name": {
-        "en": "Architecture"
-      },
-      "slug": {
-        "en": "architecture"
-      },
+      "name": "Architecture",
+      "slug": "architecture",
       "parent_id": "engineering",
-      "version": 1
+      "version": 1,
+      "created_at": "2026-09-09T12:00:00Z",
+      "updated_at": "2026-09-09T12:00:00Z"
     }
   ]
 }

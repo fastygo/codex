@@ -14,6 +14,7 @@ type ID string
 type Revision struct {
 	ID        ID            `json:"id"`
 	EntryID   content.ID    `json:"entry_id"`
+	Locale    string        `json:"locale"`
 	Version   uint64        `json:"version"`
 	Snapshot  content.Entry `json:"snapshot"`
 	AuthorID  string        `json:"author_id"`
@@ -25,10 +26,16 @@ func (revision Revision) Validate() error {
 	switch {
 	case strings.TrimSpace(string(revision.ID)) == "":
 		return validation.New("revision.id_required", "id", "revision id is required")
+	case !content.ValidRecordID(string(revision.ID)):
+		return validation.New(validation.CoreIDInvalid, "id", "id must be opaque ASCII matching "+content.RecordIDPattern)
 	case revision.EntryID == "":
 		return validation.New("revision.entry_required", "entry_id", "revision entry id is required")
 	case revision.EntryID != revision.Snapshot.ID:
 		return validation.New("revision.entry_mismatch", "snapshot.id", "revision snapshot entry does not match")
+	case !content.ValidLocale(revision.Locale):
+		return validation.New(validation.CoreLocaleInvalid, "locale", "locale must be a BCP 47 tag like \"ru\" or \"en-US\"")
+	case revision.Locale != revision.Snapshot.Locale:
+		return validation.New("revision.locale_mismatch", "locale", "revision locale does not match snapshot")
 	case revision.Version == 0 || revision.Version != revision.Snapshot.Version:
 		return validation.New("revision.version_mismatch", "version", "revision version does not match snapshot")
 	case strings.TrimSpace(revision.AuthorID) == "":
