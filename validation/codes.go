@@ -67,12 +67,20 @@ const (
 	CoreDictionaryMessagesRequired = "core.dictionary.messages_required"
 	CoreDictionaryValueInvalid     = "core.dictionary.value_invalid"
 
-	CoreSettingsTypeInvalid     = "core.settings.type_invalid"
-	CoreSettingsTitleRequired   = "core.settings.title_required"
-	CoreSettingsLanguageInvalid = "core.settings.language_invalid"
-	CoreSettingsTimezoneInvalid = "core.settings.timezone_invalid"
-	CoreSettingsCurrencyInvalid = "core.settings.currency_invalid"
-	CoreSettingsKeyDuplicated   = "core.settings.key_duplicated"
+	CoreSettingsTypeInvalid              = "core.settings.type_invalid"
+	CoreSettingsTitleRequired            = "core.settings.title_required"
+	CoreSettingsLanguageInvalid          = "core.settings.language_invalid"
+	CoreSettingsTimezoneInvalid          = "core.settings.timezone_invalid"
+	CoreSettingsCurrencyInvalid          = "core.settings.currency_invalid"
+	CoreSettingsKeyDuplicated            = "core.settings.key_duplicated"
+	CoreSettingsPhoneInvalid             = "core.settings.phone_invalid"
+	CoreSettingsEmailInvalid             = "core.settings.email_invalid"
+	CoreSettingsLinkInvalid              = "core.settings.link_invalid"
+	CoreSettingsHoursInvalid             = "core.settings.hours_invalid"
+	CoreSettingsHoursExceptionInvalid    = "core.settings.hours_exception_invalid"
+	CoreSettingsHoursExceptionDuplicated = "core.settings.hours_exception_duplicated"
+	CoreSettingsMapInvalid               = "core.settings.map_invalid"
+	CoreSettingsLocaleNeutralMismatch    = "core.settings.locale_neutral_mismatch"
 
 	ManifestInvalid         = "manifest.invalid"
 	ManifestKindUnknown     = "manifest.kind_unknown"
@@ -96,7 +104,8 @@ const (
 
 // WarningCodes are reported with severity "warning" and do not make a record invalid.
 var WarningCodes = map[string]struct{}{
-	CoreMetadataKeyShadowed: {},
-	ManifestKindUnknown:     {},
-	ManifestMetadataUnknown: {},
+	CoreMetadataKeyShadowed:           {},
+	CoreSettingsLocaleNeutralMismatch: {},
+	ManifestKindUnknown:               {},
+	ManifestMetadataUnknown:           {},
 }

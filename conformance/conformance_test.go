@@ -202,7 +202,7 @@ func TestContractPin(t *testing.T) {
 		t.Fatalf("contract pin: %v", err)
 	}
 	text := string(data)
-	if !strings.Contains(text, "d05ee75") {
+	if !strings.Contains(text, "8a09c8f") {
 		t.Fatalf("unexpected contract pin:\n%s", text)
 	}
 	for _, name := range []string{"canonical.json", "manifest.json", "term.json", "settings.json"} {

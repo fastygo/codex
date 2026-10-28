@@ -10,6 +10,17 @@ func settingsSpec() recordSpec {
 			"metadata": handleMetadata,
 			"origin":   handleOrigin,
 		},
+		nested: map[string]nestedShape{
+			"contact": {
+				keys: contactKeys,
+				inner: map[string]nestedShape{
+					"links": {keys: contactLinkKeys, array: true},
+				},
+			},
+			"hours":            {keys: hoursRuleKeys, array: true},
+			"hours_exceptions": {keys: hoursExceptionKeys, array: true},
+			"map":              {keys: mapKeys},
+		},
 	}
 }
 

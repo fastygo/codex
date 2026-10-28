@@ -1,6 +1,6 @@
 package: @ui8kit/contract
 version: 0.2.0
-commit: d05ee75
-parent: a0ae505
+commit: 8a09c8fbf9229a00b3d16850afc17808a74e8366
+parent: 1858bc1a98f9307af22eb0049fe3d1aaeff6cd55
 source: https://github.com/ui8kit/contract
-note: schemas plus fixtures/vectors/{canonical,manifest,term,settings}.json; do not tighten vendored JSON Schema
+note: schemas and fixtures/vectors/*.json only; do not tighten vendored JSON Schema

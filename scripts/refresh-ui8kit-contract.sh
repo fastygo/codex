@@ -3,7 +3,7 @@
 # Usage: scripts/refresh-ui8kit-contract.sh [commit]
 set -euo pipefail
 
-COMMIT="${1:-d05ee75}"
+COMMIT="${1:-8a09c8fbf9229a00b3d16850afc17808a74e8366}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$ROOT/conformance/contract"
 TMP="$(mktemp -d)"
@@ -15,8 +15,12 @@ if ! command -v git >/dev/null; then
 fi
 
 git clone --filter=blob:none https://github.com/ui8kit/contract.git "$TMP/contract"
-git -C "$TMP/contract" fetch --depth=1 origin "$COMMIT"
+# Short SHAs are not remote refs; clone origin/main first, then fetch the commit object if needed.
+if ! git -C "$TMP/contract" cat-file -e "${COMMIT}^{commit}" 2>/dev/null; then
+  git -C "$TMP/contract" fetch --depth=1 origin "$COMMIT"
+fi
 git -C "$TMP/contract" checkout --detach "$COMMIT"
+COMMIT="$(git -C "$TMP/contract" rev-parse HEAD)"
 
 mkdir -p "$DEST/schemas" "$DEST/fixtures/vectors"
 cp "$TMP/contract"/schemas/*.json "$DEST/schemas/"
@@ -27,12 +31,7 @@ for f in canonical.json manifest.json term.json settings.json; do
 done
 
 PARENT="$(git -C "$TMP/contract" rev-parse "${COMMIT}^" 2>/dev/null || true)"
-VERSION="$(python3 - <<'PY' 2>/dev/null || true
-import json, pathlib
-p = pathlib.Path("'"$TMP"'/contract/package.json")
-print(json.loads(p.read_text()).get("version", "unknown"))
-PY
-)"
+VERSION="$(python3 -c "import json, pathlib; print(json.loads(pathlib.Path(r'''$TMP/contract/package.json''').read_text()).get('version', 'unknown'))" 2>/dev/null || true)"
 if [[ -z "$VERSION" ]]; then
   VERSION="unknown"
 fi

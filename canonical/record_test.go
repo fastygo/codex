@@ -110,6 +110,40 @@ func TestCanonicalizeSettingsPrefixAndEmptyOptionals(t *testing.T) {
 	}
 }
 
+func TestCanonicalizeSettingsContactBlock(t *testing.T) {
+	base := `{"id":"site","locale":"en","title":"Studio","language":"en-US","version":1,"created_at":"2026-10-25T11:09:00Z","updated_at":"2026-10-25T11:09:00Z"`
+	empty, err := canonical.CanonicalizeSettings(base + `,"contact":{},"hours":[],"hours_exceptions":[],"map":{}}`)
+	if err != nil {
+		t.Fatalf("empty contact block: %v", err)
+	}
+	minimal, err := canonical.CanonicalizeSettings(base + `}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if empty != minimal {
+		t.Fatalf("empty top-level contact/hours/map must be omitted\n got %s\nwant %s", empty, minimal)
+	}
+	nested, err := canonical.CanonicalizeSettings(base + `,"contact":{"address":"","links":[]}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(nested, `"contact":{"address":"","links":[]}`) {
+		t.Fatalf("nested empty contact values must be kept: %s", nested)
+	}
+	_, err = canonical.CanonicalizeSettings(base + `,"contact":{"phone":"+12","fax":"+13"}}`)
+	if canonical.Code(err) != canonical.ErrUnknownField {
+		t.Fatalf("unknown contact field code = %q err = %v", canonical.Code(err), err)
+	}
+	_, err = canonical.CanonicalizeSettings(base + `,"hours":{"days":["mon"]}}`)
+	if canonical.Code(err) != canonical.ErrInvalidType {
+		t.Fatalf("hours object code = %q err = %v", canonical.Code(err), err)
+	}
+	_, err = canonical.CanonicalizeSettings(base + `,"map":{"lat":9007199254740993,"lng":2}}`)
+	if canonical.Code(err) != canonical.ErrUnsafeInteger {
+		t.Fatalf("unsafe map.lat code = %q err = %v", canonical.Code(err), err)
+	}
+}
+
 func TestJCSDoesNotHTMLEscape(t *testing.T) {
 	got := canonical.JCS(map[string]any{
 		"error": "a < b & c > d",

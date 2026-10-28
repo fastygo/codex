@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// Closed-record keys from @ui8kit/contract KEYS_V04 / REQUIRED_V04 (commit d05ee75).
+// Closed-record keys from @ui8kit/contract KEYS_V04 / REQUIRED_V04 (commit 8a09c8f).
 var (
 	entryKeys = []string{
 		"id", "locale", "kind", "status", "visibility", "slug", "title", "content", "excerpt",
@@ -30,16 +30,22 @@ var (
 	settingsKeys = []string{
 		"id", "locale", "title", "description", "language", "timezone", "logo_media_id",
 		"icon_media_id", "front_page_id", "posts_page_id", "posts_per_page", "comments_open",
-		"currency", "origin", "metadata", "version", "created_at", "updated_at",
+		"currency", "contact", "hours", "hours_exceptions", "map", "origin", "metadata",
+		"version", "created_at", "updated_at",
 	}
 	requiredSettings = []string{
 		"id", "locale", "title", "language", "version", "created_at", "updated_at",
 	}
-	metadataKeys   = []string{"value", "private"}
-	termRefKeys    = []string{"taxonomy", "term_id"}
-	originKeys     = []string{"system", "id"}
-	discussionKeys = []string{"comments", "pings"}
-	entryDates     = map[string]struct{}{
+	metadataKeys       = []string{"value", "private"}
+	termRefKeys        = []string{"taxonomy", "term_id"}
+	originKeys         = []string{"system", "id"}
+	discussionKeys     = []string{"comments", "pings"}
+	contactKeys        = []string{"phone", "email", "address", "links"}
+	contactLinkKeys    = []string{"network", "handle"}
+	hoursRuleKeys      = []string{"days", "open", "close"}
+	hoursExceptionKeys = []string{"date", "closed", "open", "close"}
+	mapKeys            = []string{"provider", "lat", "lng"}
+	entryDates         = map[string]struct{}{
 		"created_at": {}, "updated_at": {}, "published_at": {}, "deleted_at": {},
 	}
 	stampDates = map[string]struct{}{
@@ -52,6 +58,12 @@ var (
 
 type fieldHandler func(v any, path string) (any, bool, error)
 
+type nestedShape struct {
+	keys  []string
+	array bool
+	inner map[string]nestedShape
+}
+
 type recordSpec struct {
 	kind     string
 	keys     []string
@@ -59,6 +71,7 @@ type recordSpec struct {
 	dates    map[string]struct{}
 	drop     []string
 	special  map[string]fieldHandler
+	nested   map[string]nestedShape
 }
 
 func isObj(v any) (map[string]any, bool) {
@@ -146,6 +159,10 @@ func projectRecord(doc any, spec recordSpec) (map[string]any, error) {
 			if skip {
 				continue
 			}
+		} else if n, ok := spec.nested[k]; ok {
+			if err := shapeNested(v, n, path); err != nil {
+				return nil, err
+			}
 		}
 		out[k] = v
 	}
@@ -213,6 +230,42 @@ func projectMetadata(v any, path string) (any, error) {
 		return nil, nil
 	}
 	return out, nil
+}
+
+// shapeNested closes nested objects (and arrays of objects) the way
+// @ui8kit/contract shapeNested does: unknown/duplicate keys are errors,
+// values themselves are kept, arrays are not sorted.
+func shapeNested(v any, n nestedShape, path string) error {
+	one := func(x any, p string) error {
+		o, ok := isObj(x)
+		if !ok {
+			return fail(ErrInvalidType, p, "must be an object")
+		}
+		if err := closed(o, n.keys, p); err != nil {
+			return err
+		}
+		for ik, inn := range n.inner {
+			if own(o, ik) {
+				if err := shapeNested(o[ik], inn, p+"."+ik); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	if !n.array {
+		return one(v, path)
+	}
+	arr, ok := v.([]any)
+	if !ok {
+		return fail(ErrInvalidType, path, "must be an array")
+	}
+	for i, x := range arr {
+		if err := one(x, fmt.Sprintf("%s[%d]", path, i)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func projectOrigin(v any, path string) (any, error) {

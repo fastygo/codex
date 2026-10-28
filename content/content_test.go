@@ -332,6 +332,22 @@ func TestCommentMenuDictionarySettings(t *testing.T) {
 	if err := settings.Validate(); err != nil {
 		t.Fatalf("Settings.Validate() error = %v", err)
 	}
+	closed := true
+	lat, lng := 55.7558, 37.6173
+	settings.Contact = &content.Contact{
+		Phone: "+12025550143", Email: "hello@example.com", Address: "Moscow",
+		Links: []content.ContactLink{{Network: "telegram", Handle: "studio"}},
+	}
+	settings.Hours = []content.HoursRule{{Days: []string{content.WeekdayMon}, Open: "09:00", Close: "18:00"}}
+	settings.HoursExceptions = []content.HoursException{{Date: "2026-12-25", Closed: &closed}}
+	settings.Map = &content.MapPin{Provider: "osm", Lat: &lat, Lng: &lng}
+	if err := settings.Validate(); err != nil {
+		t.Fatalf("Settings.Validate() contact block error = %v", err)
+	}
+	settings.Contact.Phone = "+1 202"
+	if err := settings.Validate(); err == nil || validation.Code(err) != validation.CoreSettingsPhoneInvalid {
+		t.Fatalf("invalid phone = %v", err)
+	}
 }
 
 func TestSiteLocale(t *testing.T) {

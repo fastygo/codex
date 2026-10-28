@@ -4,8 +4,11 @@ package validate
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/fastygo/codex/canonical"
 	"github.com/fastygo/codex/content"
@@ -33,11 +36,22 @@ type Options struct {
 }
 
 var (
-	ident    = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,62}$`)
-	localeRe = regexp.MustCompile(`^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$`)
-	currency = regexp.MustCompile(`^[A-Z]{3}$`)
-	rfc3339  = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$`)
-	timezone = regexp.MustCompile(`^[A-Za-z_]+(/[A-Za-z0-9_+-]+)*$|^UTC$`)
+	ident     = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,62}$`)
+	localeRe  = regexp.MustCompile(`^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$`)
+	currency  = regexp.MustCompile(`^[A-Z]{3}$`)
+	rfc3339   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$`)
+	timezone  = regexp.MustCompile(`^[A-Za-z_]+(/[A-Za-z0-9_+-]+)*$|^UTC$`)
+	e164      = regexp.MustCompile(`^\+[1-9][0-9]{1,14}$`)
+	emailRe   = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
+	handleRe  = regexp.MustCompile(`^\S+$`)
+	openTime  = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
+	closeTime = regexp.MustCompile(`^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$`)
+	dateRe    = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
+	weekdays  = map[string]struct{}{
+		"mon": {}, "tue": {}, "wed": {}, "thu": {}, "fri": {}, "sat": {}, "sun": {},
+	}
+	weekdayList           = "mon, tue, wed, thu, fri, sat, sun"
+	localeNeutralSettings = []string{"contact.phone", "contact.email", "contact.links", "hours", "hours_exceptions", "map"}
 )
 
 var entryKeys = []string{
@@ -57,14 +71,19 @@ var menuItemKeys = []string{"id", "label", "url", "parent_id", "order", "target"
 var dictionaryKeys = []string{"locale", "source_locale", "messages"}
 var settingsKeys = []string{
 	"id", "locale", "title", "description", "language", "timezone", "logo_media_id", "icon_media_id",
-	"front_page_id", "posts_page_id", "posts_per_page", "comments_open", "currency", "origin", "metadata",
-	"version", "created_at", "updated_at",
+	"front_page_id", "posts_page_id", "posts_per_page", "comments_open", "currency", "contact",
+	"hours", "hours_exceptions", "map", "origin", "metadata", "version", "created_at", "updated_at",
 }
 var originKeys = []string{"system", "id"}
 var metadataKeys = []string{"value", "private"}
 var termRefKeys = []string{"taxonomy", "term_id"}
 var discussionKeys = []string{"comments", "pings"}
 var targetKeys = []string{"kind", "id"}
+var contactKeys = []string{"phone", "email", "address", "links"}
+var contactLinkKeys = []string{"network", "handle"}
+var hoursRuleKeys = []string{"days", "open", "close"}
+var hoursExceptionKeys = []string{"date", "closed", "open", "close"}
+var mapKeys = []string{"provider", "lat", "lng"}
 
 var entryStatuses = map[string]struct{}{
 	"draft": {}, "pending": {}, "scheduled": {}, "published": {}, "archived": {}, "trashed": {},
@@ -362,6 +381,13 @@ func checkSettings(o any, p string, add func(string, string, string)) {
 	if !localeRe.MatchString(str(m["language"])) {
 		add(validation.CoreSettingsLanguageInvalid, p+".language", "language must be a BCP 47 tag like \"en-US\"")
 	}
+	for _, k := range []string{"description", "timezone", "logo_media_id", "icon_media_id", "front_page_id", "posts_page_id"} {
+		if m[k] != nil {
+			if _, ok := m[k].(string); !ok {
+				add(validation.CoreSettingsTypeInvalid, p+"."+k, k+" must be a string")
+			}
+		}
+	}
 	if m["timezone"] != nil && !timezone.MatchString(str(m["timezone"])) {
 		add(validation.CoreSettingsTimezoneInvalid, p+".timezone", "timezone must be an IANA name like Europe/Moscow")
 	}
@@ -376,6 +402,273 @@ func checkSettings(o any, p string, add func(string, string, string)) {
 	if m["currency"] != nil && !currency.MatchString(str(m["currency"])) {
 		add(validation.CoreSettingsCurrencyInvalid, p+".currency", "currency must be an ISO 4217 code like USD")
 	}
+	if m["contact"] != nil {
+		checkContact(m["contact"], p+".contact", add)
+	}
+	if m["hours"] != nil {
+		checkHours(m["hours"], p+".hours", add)
+	}
+	if m["hours_exceptions"] != nil {
+		checkHoursExceptions(m["hours_exceptions"], p+".hours_exceptions", add)
+	}
+	if m["map"] != nil {
+		checkMap(m["map"], p+".map", add)
+	}
+}
+
+func checkContact(c any, p string, add func(string, string, string)) {
+	o, ok := isObj(c)
+	if !ok {
+		add(validation.CoreSettingsTypeInvalid, p, "contact must be an object {phone?, email?, address?, links?}")
+		return
+	}
+	closed(add, o, contactKeys, p)
+	if o["phone"] != nil && !(isString(o["phone"]) && e164.MatchString(str(o["phone"]))) {
+		add(validation.CoreSettingsPhoneInvalid, p+".phone", "phone must be E.164: + and 2 to 15 digits without spaces, e.g. +12025550143")
+	}
+	if o["email"] != nil && !(isString(o["email"]) && emailRe.MatchString(str(o["email"]))) {
+		add(validation.CoreSettingsEmailInvalid, p+".email", "email must look like name@example.com")
+	}
+	if o["address"] != nil && (!isString(o["address"]) || blank(o["address"])) {
+		add(validation.CoreSettingsTypeInvalid, p+".address", "address must be a non-blank string (omit it when there is none)")
+	}
+	if o["links"] == nil {
+		return
+	}
+	links, ok := o["links"].([]any)
+	if !ok || len(links) == 0 {
+		add(validation.CoreSettingsTypeInvalid, p+".links", "links must be a non-empty array of {network, handle} (omit it when there are none)")
+		return
+	}
+	for i, item := range links {
+		q := fmt.Sprintf("%s.links[%d]", p, i)
+		l, is := isObj(item)
+		if !is {
+			add(validation.CoreSettingsLinkInvalid, q, "a link must be {network, handle}")
+			continue
+		}
+		closed(add, l, contactLinkKeys, q)
+		if !ident.MatchString(str(l["network"])) {
+			add(validation.CoreSettingsLinkInvalid, q+".network", "network must be a lowercase identifier like telegram or whatsapp")
+		}
+		if !(isString(l["handle"]) && handleRe.MatchString(str(l["handle"]))) {
+			add(validation.CoreSettingsLinkInvalid, q+".handle", "handle must be a non-empty string without spaces")
+		}
+	}
+}
+
+func hhmmMinutes(t string) int {
+	return (int(t[0]-'0')*10+int(t[1]-'0'))*60 + int(t[3]-'0')*10 + int(t[4]-'0')
+}
+
+func checkInterval(o obj, q, code string, add func(string, string, string)) {
+	if !(isString(o["open"]) && openTime.MatchString(str(o["open"]))) {
+		add(code, q+".open", "open must be HH:MM (00:00 to 23:59)")
+		return
+	}
+	if !(isString(o["close"]) && closeTime.MatchString(str(o["close"]))) {
+		add(code, q+".close", "close must be HH:MM (00:00 to 24:00)")
+		return
+	}
+	close := str(o["close"])
+	open := str(o["open"])
+	if close != "24:00" && hhmmMinutes(close) == hhmmMinutes(open) {
+		add(code, q+".close", "close must differ from open (00:00 to 24:00 = all day)")
+	}
+}
+
+func realDate(d string) bool {
+	if !dateRe.MatchString(d) {
+		return false
+	}
+	var y, m, day int
+	if _, err := fmt.Sscanf(d, "%d-%d-%d", &y, &m, &day); err != nil {
+		return false
+	}
+	t := time.Date(y, time.Month(m), day, 0, 0, 0, 0, time.UTC)
+	return t.Year() == y && int(t.Month()) == m && t.Day() == day
+}
+
+func checkHours(h any, p string, add func(string, string, string)) {
+	arr, ok := h.([]any)
+	if !ok {
+		add(validation.CoreSettingsTypeInvalid, p, "hours must be an array of {days, open, close}")
+		return
+	}
+	for i, item := range arr {
+		q := fmt.Sprintf("%s[%d]", p, i)
+		r, is := isObj(item)
+		if !is {
+			add(validation.CoreSettingsHoursInvalid, q, "an hours rule must be {days, open, close}")
+			continue
+		}
+		closed(add, r, hoursRuleKeys, q)
+		days, isArr := r["days"].([]any)
+		if !isArr || len(days) == 0 {
+			add(validation.CoreSettingsHoursInvalid, q+".days", "days must be a non-empty array of "+weekdayList)
+		} else {
+			seen := map[string]struct{}{}
+			for n, d := range days {
+				ds := str(d)
+				if _, ok := weekdays[ds]; !ok {
+					add(validation.CoreSettingsHoursInvalid, fmt.Sprintf("%s.days[%d]", q, n), "day must be one of "+weekdayList)
+				}
+				if _, dup := seen[ds]; dup {
+					add(validation.CoreSettingsHoursInvalid, q+".days", "a day is listed twice in one rule")
+				}
+				seen[ds] = struct{}{}
+			}
+		}
+		checkInterval(r, q, validation.CoreSettingsHoursInvalid, add)
+	}
+}
+
+func checkHoursExceptions(x any, p string, add func(string, string, string)) {
+	arr, ok := x.([]any)
+	if !ok {
+		add(validation.CoreSettingsTypeInvalid, p, "hours_exceptions must be an array of {date, closed: true} or {date, open, close}")
+		return
+	}
+	seen := map[string]int{}
+	for i, item := range arr {
+		q := fmt.Sprintf("%s[%d]", p, i)
+		e, is := isObj(item)
+		if !is {
+			add(validation.CoreSettingsHoursExceptionInvalid, q, "an exception must be {date, closed: true} or {date, open, close}")
+			continue
+		}
+		closed(add, e, hoursExceptionKeys, q)
+		date := str(e["date"])
+		if !realDate(date) {
+			add(validation.CoreSettingsHoursExceptionInvalid, q+".date", "date must be an existing calendar day YYYY-MM-DD")
+		} else if prev, dup := seen[date]; dup {
+			add(validation.CoreSettingsHoursExceptionDuplicated, q+".date", fmt.Sprintf("date %s already has an exception (%s[%d])", date, p, prev))
+		} else {
+			seen[date] = i
+		}
+		timed := e["open"] != nil || e["close"] != nil
+		if e["closed"] != nil {
+			closedTrue, isBool := e["closed"].(bool)
+			if !isBool || !closedTrue {
+				add(validation.CoreSettingsHoursExceptionInvalid, q+".closed", "closed must be true (give open and close for a short day)")
+			}
+			if timed {
+				add(validation.CoreSettingsHoursExceptionInvalid, q, "an exception is either {date, closed: true} or {date, open, close}, not both")
+			}
+		} else if !timed {
+			add(validation.CoreSettingsHoursExceptionInvalid, q, "an exception needs closed: true or open and close")
+		} else {
+			checkInterval(e, q, validation.CoreSettingsHoursExceptionInvalid, add)
+		}
+	}
+}
+
+func asFloat(v any) (float64, bool) {
+	switch t := v.(type) {
+	case float64:
+		return t, !math.IsNaN(t) && !math.IsInf(t, 0)
+	case json.Number:
+		f, err := t.Float64()
+		return f, err == nil && !math.IsNaN(f) && !math.IsInf(f, 0)
+	case int:
+		return float64(t), true
+	case int64:
+		return float64(t), true
+	default:
+		return 0, false
+	}
+}
+
+func inRange(v any, max float64) bool {
+	f, ok := asFloat(v)
+	return ok && f >= -max && f <= max
+}
+
+func checkMap(m any, p string, add func(string, string, string)) {
+	o, ok := isObj(m)
+	if !ok {
+		add(validation.CoreSettingsTypeInvalid, p, "map must be an object {provider?, lat?, lng?}")
+		return
+	}
+	closed(add, o, mapKeys, p)
+	if len(o) == 0 {
+		add(validation.CoreSettingsMapInvalid, p, "map needs a provider or lat and lng (omit it when there is none)")
+		return
+	}
+	if o["provider"] != nil && !ident.MatchString(str(o["provider"])) {
+		add(validation.CoreSettingsMapInvalid, p+".provider", "provider must be a lowercase identifier like osm, google or yandex")
+	}
+	if hasKey(o, "lat") != hasKey(o, "lng") {
+		add(validation.CoreSettingsMapInvalid, p, "lat and lng go together")
+	}
+	if o["lat"] != nil && !inRange(o["lat"], 90) {
+		add(validation.CoreSettingsMapInvalid, p+".lat", "lat must be a number from -90 to 90")
+	}
+	if o["lng"] != nil && !inRange(o["lng"], 180) {
+		add(validation.CoreSettingsMapInvalid, p+".lng", "lng must be a number from -180 to 180")
+	}
+}
+
+func isString(v any) bool {
+	_, ok := v.(string)
+	return ok
+}
+
+func lookupDotted(o obj, path string) (any, bool) {
+	var cur any = o
+	for _, k := range strings.Split(path, ".") {
+		m, ok := isObj(cur)
+		if !ok {
+			return nil, false
+		}
+		v, exists := m[k]
+		if !exists {
+			return nil, false
+		}
+		cur = v
+	}
+	return cur, true
+}
+
+func stableJSON(v any) string {
+	switch t := v.(type) {
+	case nil:
+		return "null"
+	case []any:
+		parts := make([]string, len(t))
+		for i, x := range t {
+			parts[i] = stableJSON(x)
+		}
+		return "[" + strings.Join(parts, ",") + "]"
+	case map[string]any:
+		keys := make([]string, 0, len(t))
+		for k := range t {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		parts := make([]string, 0, len(keys))
+		for _, k := range keys {
+			kb, _ := json.Marshal(k)
+			parts = append(parts, string(kb)+":"+stableJSON(t[k]))
+		}
+		return "{" + strings.Join(parts, ",") + "}"
+	case json.Number:
+		return t.String()
+	default:
+		b, err := json.Marshal(t)
+		if err != nil {
+			return "null"
+		}
+		return string(b)
+	}
+}
+
+func neutralValue(o obj, path string) string {
+	v, ok := lookupDotted(o, path)
+	if !ok {
+		return ""
+	}
+	return stableJSON(v)
 }
 
 func checkComment(o any, p string, add func(string, string, string)) {
@@ -526,6 +819,23 @@ func CollectionV04(c Collection, opts Options) []validation.Issue {
 	settings := run(c.Settings, checkSettings)
 
 	unique(settings, validation.CoreSettingsKeyDuplicated, func(o obj) string { return "(" + str(o["id"]) + ", " + str(o["locale"]) + ")" }, "settings key")
+	firstOf := map[string]struct {
+		file string
+		o    obj
+	}{}
+	for _, r := range settings {
+		id := str(r.o["id"])
+		first, ok := firstOf[id]
+		if !ok {
+			firstOf[id] = r
+			continue
+		}
+		for _, k := range localeNeutralSettings {
+			if neutralValue(first.o, k) != neutralValue(r.o, k) {
+				add(validation.CoreSettingsLocaleNeutralMismatch, r.file+"."+k, k+" differs from settings ("+str(first.o["id"])+", "+str(first.o["locale"])+") in "+first.file+"; only contact.address is localized")
+			}
+		}
+	}
 	core := map[string]struct{}{}
 	for _, k := range entryKeys {
 		core[k] = struct{}{}
